@@ -1,0 +1,45 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        server:
+          - jira-mcp-server
+          - confluence-mcp-server
+          - bitbucket-mcp-server
+
+    name: ${{ matrix.server }} / Python ${{ matrix.python-version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.server }}
+        run: pip install -e ".[dev]"
+
+      - name: Lint with ruff
+        working-directory: ${{ matrix.server }}
+        run: ruff check src/ tests/
+
+      - name: Type check with mypy
+        working-directory: ${{ matrix.server }}
+        run: mypy src/
+
+      - name: Run tests
+        working-directory: ${{ matrix.server }}
+        run: pytest

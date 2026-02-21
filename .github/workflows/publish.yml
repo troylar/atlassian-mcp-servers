@@ -1,0 +1,51 @@
+name: Publish to PyPI
+
+on:
+  push:
+    tags:
+      - "jira-v*"
+      - "confluence-v*"
+      - "bitbucket-v*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install build tools
+        run: pip install build
+
+      - name: Determine server from tag
+        id: server
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          if [[ "$TAG" == jira-v* ]]; then
+            echo "dir=jira-mcp-server" >> "$GITHUB_OUTPUT"
+            echo "name=atlassian-jira-mcp" >> "$GITHUB_OUTPUT"
+          elif [[ "$TAG" == confluence-v* ]]; then
+            echo "dir=confluence-mcp-server" >> "$GITHUB_OUTPUT"
+            echo "name=atlassian-confluence-mcp" >> "$GITHUB_OUTPUT"
+          elif [[ "$TAG" == bitbucket-v* ]]; then
+            echo "dir=bitbucket-mcp-server" >> "$GITHUB_OUTPUT"
+            echo "name=atlassian-bitbucket-mcp" >> "$GITHUB_OUTPUT"
+          else
+            echo "Unknown tag: $TAG" && exit 1
+          fi
+
+      - name: Build package
+        working-directory: ${{ steps.server.outputs.dir }}
+        run: python -m build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: ${{ steps.server.outputs.dir }}/dist/
