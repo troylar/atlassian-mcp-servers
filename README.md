@@ -4,9 +4,9 @@ A monorepo of [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) s
 
 | Server | Tools | Package |
 |--------|-------|---------|
-| [Jira](jira-mcp-server/) | 37 | `fastmcp-jira-server` |
-| [Confluence](confluence-mcp-server/) | 38 | `fastmcp-confluence-server` |
-| [Bitbucket](bitbucket-mcp-server/) | 44 | `fastmcp-bitbucket-server` |
+| [Jira](jira-mcp-server/) | 37 | `atlassian-jira-mcp` |
+| [Confluence](confluence-mcp-server/) | 38 | `atlassian-confluence-mcp` |
+| [Bitbucket](bitbucket-mcp-server/) | 44 | `atlassian-bitbucket-mcp` |
 
 ## Structure
 
@@ -86,7 +86,7 @@ Add to your `.mcp.json` (e.g., for Claude Code):
 {
   "mcpServers": {
     "jira": {
-      "command": "fastmcp-jira-server",
+      "command": "atlassian-jira-mcp",
       "env": {
         "JIRA_MCP_URL": "https://yoursite.atlassian.net",
         "JIRA_MCP_EMAIL": "you@company.com",
@@ -94,7 +94,7 @@ Add to your `.mcp.json` (e.g., for Claude Code):
       }
     },
     "confluence": {
-      "command": "fastmcp-confluence-server",
+      "command": "atlassian-confluence-mcp",
       "env": {
         "CONFLUENCE_MCP_URL": "https://yoursite.atlassian.net/wiki",
         "CONFLUENCE_MCP_EMAIL": "you@company.com",
@@ -102,7 +102,7 @@ Add to your `.mcp.json` (e.g., for Claude Code):
       }
     },
     "bitbucket": {
-      "command": "fastmcp-bitbucket-server",
+      "command": "atlassian-bitbucket-mcp",
       "env": {
         "BITBUCKET_MCP_URL": "https://api.bitbucket.org",
         "BITBUCKET_MCP_EMAIL": "you@company.com",
