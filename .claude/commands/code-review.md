@@ -162,7 +162,7 @@ Generated with [Claude Code](https://claude.ai/code)
 
 Links use full SHA and correct repo:
 ```
-https://github.com/troylar/atlassian/blob/<full-40-char-sha>/path/to/file.py#L10-L15
+https://github.com/troylar/atlassian-mcp-servers/blob/<full-40-char-sha>/path/to/file.py#L10-L15
 ```
 
 ## Notes
