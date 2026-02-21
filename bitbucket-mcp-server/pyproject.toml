@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "atlassian-bitbucket-mcp"
 version = "1.0.0"
 description = "MCP server for Bitbucket with dual auth (Cloud + Data Center), repos, PRs, branches, and more"
-readme = "README.md"
+readme = {file = "../README.md", content-type = "text/markdown"}
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
@@ -41,6 +41,8 @@ dev = [
     "black>=23.0.0",
     "ruff>=0.1.0",
     "hatch",
+    "build",
+    "twine",
 ]
 
 [project.scripts]
