@@ -1,8 +1,6 @@
 """Pydantic models for Confluence MCP Server."""
 
-from typing import Any, Dict, List, Optional
-
-from pydantic import BaseModel, Field
+from typing import List, Optional
 
 
 class ConfluenceAPIError(Exception):

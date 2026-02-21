@@ -6,7 +6,6 @@ import pytest
 
 from jira_mcp_server.models import FieldSchema, FieldType
 
-
 # --- Helpers ---
 
 
@@ -214,8 +213,8 @@ class TestIssueCreate:
                 issue_tools.jira_issue_create(project="PROJ", summary="Test")
 
     def test_validation_failure(self) -> None:
-        from jira_mcp_server.tools import issue_tools
         from jira_mcp_server.models import FieldValidationError
+        from jira_mcp_server.tools import issue_tools
 
         mock_validator = MagicMock()
         mock_validator.validate_fields.side_effect = FieldValidationError("field", "bad")

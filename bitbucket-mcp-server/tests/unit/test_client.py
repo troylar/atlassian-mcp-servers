@@ -10,7 +10,6 @@ import pytest
 from bitbucket_mcp_server.client import BitbucketClient
 from bitbucket_mcp_server.config import AuthType, BitbucketConfig
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -734,10 +733,8 @@ class TestPROperations:
 
     # --- decline_pr ---
     def test_decline_pr_dc(self, dc_client: BitbucketClient) -> None:
-        pr_data = {"id": 1, "version": 0}
         decline_data = {"id": 1, "state": "DECLINED"}
-        with patch.object(dc_client, "_request") as mock_req:
-            mock_req.side_effect = [_mock_response(200, pr_data), _mock_response(200, decline_data)]
+        with patch.object(dc_client, "_request", return_value=_mock_response(200, decline_data)):
             result = dc_client.decline_pr("PROJ", "repo", 1)
         assert result == decline_data
 
@@ -748,14 +745,12 @@ class TestPROperations:
         assert result == data
 
     def test_decline_pr_timeout(self, dc_client: BitbucketClient) -> None:
-        with patch.object(dc_client, "_request") as mock_req:
-            mock_req.side_effect = [_mock_response(200, {"version": 0}), httpx.TimeoutException("t")]
+        with patch.object(dc_client, "_request", side_effect=httpx.TimeoutException("t")):
             with pytest.raises(ValueError, match="Timeout declining PR"):
                 dc_client.decline_pr("PROJ", "repo", 1)
 
     def test_decline_pr_error(self, dc_client: BitbucketClient) -> None:
-        with patch.object(dc_client, "_request") as mock_req:
-            mock_req.side_effect = [_mock_response(200, {"version": 0}), _mock_response(409, text="conflict")]
+        with patch.object(dc_client, "_request", return_value=_mock_response(409, text="conflict")):
             with pytest.raises(ValueError, match="Conflict"):
                 dc_client.decline_pr("PROJ", "repo", 1)
 

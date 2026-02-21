@@ -130,7 +130,9 @@ def bitbucket_repo_fork(project: str, repo: str, name: str | None = None) -> Dic
 
 
 @mcp.tool()
-def bitbucket_branch_list(project: str, repo: str, limit: int = 25, start: int = 0) -> Dict[str, Any]:  # pragma: no cover
+def bitbucket_branch_list(  # pragma: no cover
+    project: str, repo: str, limit: int = 25, start: int = 0
+) -> Dict[str, Any]:
     """List branches in a repository.
 
     Args:

@@ -65,7 +65,9 @@ class TestMain:
             main()
             mock_mcp.run.assert_called_once()
 
-    def test_main_ssl_disabled_warning(self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    def test_main_ssl_disabled_warning(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
         monkeypatch.setenv("JIRA_MCP_URL", "https://jira.example.com")
         monkeypatch.setenv("JIRA_MCP_TOKEN", "test-token")
         monkeypatch.setenv("JIRA_MCP_VERIFY_SSL", "false")

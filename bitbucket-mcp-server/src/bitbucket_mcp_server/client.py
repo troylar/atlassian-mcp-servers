@@ -1,7 +1,7 @@
 """Bitbucket REST API client with dual auth support (PAT + Cloud)."""
 
 import base64
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import httpx
 
@@ -439,7 +439,6 @@ class BitbucketClient:
         if self._auth_type == AuthType.CLOUD:
             url = f"{self._cloud_repo_url(repo)}/pullrequests/{pr_id}/decline"
         else:
-            pr = self.get_pr(project, repo, pr_id)
             url = f"{self._dc_project_repo_url(project, repo)}/pull-requests/{pr_id}/decline"
         try:
             response = self._request("POST", url, json={})
