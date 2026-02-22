@@ -1,7 +1,9 @@
 """Confluence REST API client with dual auth support (PAT + Cloud)."""
 
 import base64
+import re
 from typing import Any, Dict, List, Optional
+from xml.sax.saxutils import escape as xml_escape
 
 import httpx
 
@@ -559,3 +561,68 @@ class ConfluenceClient:
             return response.json()  # type: ignore[no-any-return]
         except httpx.TimeoutException:
             raise ValueError(f"Timeout setting permissions for page {page_id}")
+
+    # Macro rendering
+
+    _MACRO_NAME_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_-]*$")
+    _VALID_BODY_TYPES = frozenset({"plain-text-body", "rich-text-body"})
+
+    def render_macro(
+        self,
+        macro_name: str,
+        parameters: Dict[str, str] | None = None,
+        body: str | None = None,
+        body_type: str = "rich-text-body",
+    ) -> Dict[str, str]:
+        """Render a Confluence macro as storage-format XHTML.
+
+        Pure string generation — no API calls. The returned XHTML can be
+        embedded in page body content passed to create_page/update_page.
+
+        Args:
+            macro_name: The macro identifier (e.g. "code", "toc", "panel",
+                        "info", "warning", "expand", or any plugin macro name).
+            parameters: Optional dict of macro parameters.
+            body: Optional macro body content.
+            body_type: How to wrap the body — "plain-text-body" (CDATA-wrapped,
+                       for code/noformat) or "rich-text-body" (XHTML content,
+                       for panel/expand/info). Default: "rich-text-body".
+                       Note: with "rich-text-body", the body is included as-is
+                       (no escaping). Caller must ensure body is trusted XHTML.
+
+        Returns:
+            Dict with "xhtml" (the rendered macro markup) and "macro_name".
+        """
+        if not macro_name or not macro_name.strip():
+            raise ValueError("macro_name must not be empty")
+        macro_name = macro_name.strip()
+        if not self._MACRO_NAME_RE.match(macro_name):
+            raise ValueError(
+                f"Invalid macro_name '{macro_name}': must start with a letter "
+                "and contain only letters, digits, hyphens, and underscores"
+            )
+        if body_type not in self._VALID_BODY_TYPES:
+            raise ValueError(
+                f"Invalid body_type '{body_type}': must be one of "
+                f"{sorted(self._VALID_BODY_TYPES)}"
+            )
+
+        parts: list[str] = [f'<ac:structured-macro ac:name="{xml_escape(macro_name)}">']
+
+        if parameters:
+            for key, value in parameters.items():
+                escaped_key = xml_escape(str(key))
+                escaped_value = xml_escape(str(value))
+                parts.append(f'<ac:parameter ac:name="{escaped_key}">{escaped_value}</ac:parameter>')
+
+        if body:
+            if body_type == "plain-text-body":
+                safe_body = body.replace("]]>", "]]]]><![CDATA[>")
+                parts.append(f"<ac:plain-text-body><![CDATA[{safe_body}]]></ac:plain-text-body>")
+            else:
+                parts.append(f"<ac:rich-text-body>{body}</ac:rich-text-body>")
+
+        parts.append("</ac:structured-macro>")
+        xhtml = "".join(parts)
+
+        return {"xhtml": xhtml, "macro_name": macro_name}
