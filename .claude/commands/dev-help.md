@@ -134,7 +134,7 @@ Display a comprehensive guide to the developer workflow.
   atlassian/
   ├── jira-mcp-server/          # 37 tools
   │   └── src/jira_mcp_server/
-  ├── confluence-mcp-server/    # 38 tools
+  ├── confluence-mcp-server/    # 40 tools
   │   └── src/confluence_mcp_server/
   └── bitbucket-mcp-server/     # 44 tools
       └── src/bitbucket_mcp_server/
