@@ -1,6 +1,12 @@
 """Tests for text sanitization utilities."""
 
-from jira_mcp_server.utils.text import escape_jql_value, markdown_to_jira, sanitize_long_text, sanitize_text
+from jira_mcp_server.utils.text import (
+    escape_jql_value,
+    markdown_to_jira,
+    sanitize_long_text,
+    sanitize_text,
+    sanitize_value,
+)
 
 
 class TestSanitizeText:
@@ -130,6 +136,31 @@ class TestSanitizeText:
     def test_strip_multiple_invisible_chars(self) -> None:
         text = "\u200b\u200c\u200d\u200e\u200f\ufeff\u2060"
         assert sanitize_text(text) == ""
+
+    def test_strip_xml_invalid_fffe(self) -> None:
+        assert sanitize_text("hello\ufffeworld") == "helloworld"
+
+    def test_strip_xml_invalid_ffff(self) -> None:
+        assert sanitize_text("hello\uffffworld") == "helloworld"
+
+    def test_preserve_supplementary_plane_char(self) -> None:
+        assert sanitize_text("hello\U0001F600world") == "hello\U0001F600world"
+
+    def test_strip_private_use_area(self) -> None:
+        assert sanitize_text("hello\ue000world") == "helloworld"
+
+    def test_strip_private_use_area_high(self) -> None:
+        assert sanitize_text("hello\uf8ffworld") == "helloworld"
+
+    def test_preserve_cjk_characters(self) -> None:
+        assert sanitize_text("\u4e16\u754c") == "\u4e16\u754c"
+
+    def test_preserve_arabic(self) -> None:
+        assert sanitize_text("\u0645\u0631\u062d\u0628\u0627") == "\u0645\u0631\u062d\u0628\u0627"
+
+    def test_strip_c1_control_chars(self) -> None:
+        assert sanitize_text("hello\x80world") == "helloworld"
+        assert sanitize_text("hello\x9fworld") == "helloworld"
 
 
 class TestMarkdownToJira:
@@ -340,6 +371,67 @@ class TestSanitizeLongText:
         text = "# Title \u2014 Subtitle"
         expected = "h1. Title - Subtitle"
         assert sanitize_long_text(text) == expected
+
+    def test_fenced_code_block_preserved(self) -> None:
+        text = "```python\ndef foo():\n    pass\n```"
+        expected = "{code:python}\ndef foo():\n    pass\n{code}"
+        assert sanitize_long_text(text) == expected
+
+    def test_fenced_code_block_with_surrounding_text(self) -> None:
+        text = "## Example\n\n```python\ndef foo():\n    pass\n```\n\nDone."
+        expected = "h2. Example\n\n{code:python}\ndef foo():\n    pass\n{code}\n\nDone."
+        assert sanitize_long_text(text) == expected
+
+    def test_inline_code_and_fenced_block(self) -> None:
+        text = "Use `foo` like:\n\n```python\nfoo()\n```"
+        expected = "Use {{foo}} like:\n\n{code:python}\nfoo()\n{code}"
+        assert sanitize_long_text(text) == expected
+
+    def test_invisible_chars_stripped_in_long_text(self) -> None:
+        text = "hello\u200b\ufeff world"
+        assert sanitize_long_text(text) == "hello world"
+
+
+class TestSanitizeValue:
+    def test_string_sanitized(self) -> None:
+        assert sanitize_value("\u201chello\u201d") == '"hello"'
+
+    def test_int_passthrough(self) -> None:
+        assert sanitize_value(42) == 42
+
+    def test_float_passthrough(self) -> None:
+        assert sanitize_value(3.14) == 3.14
+
+    def test_bool_passthrough(self) -> None:
+        assert sanitize_value(True) is True
+
+    def test_none_passthrough(self) -> None:
+        assert sanitize_value(None) is None
+
+    def test_dict_string_values_sanitized(self) -> None:
+        result = sanitize_value({"name": "\u201ctest\u201d", "count": 5})
+        assert result == {"name": '"test"', "count": 5}
+
+    def test_list_string_values_sanitized(self) -> None:
+        result = sanitize_value(["\u201ca\u201d", 1, "\u2018b\u2019"])
+        assert result == ['"a"', 1, "'b'"]
+
+    def test_nested_dict_sanitized(self) -> None:
+        result = sanitize_value({"outer": {"inner": "\u2014dash"}})
+        assert result == {"outer": {"inner": "-dash"}}
+
+    def test_list_of_dicts_sanitized(self) -> None:
+        result = sanitize_value([{"value": "\u2026"}, {"value": "ok"}])
+        assert result == [{"value": "..."}, {"value": "ok"}]
+
+    def test_empty_dict(self) -> None:
+        assert sanitize_value({}) == {}
+
+    def test_empty_list(self) -> None:
+        assert sanitize_value([]) == []
+
+    def test_empty_string(self) -> None:
+        assert sanitize_value("") == ""
 
 
 class TestEscapeJqlValue:

@@ -2,6 +2,7 @@
 
 import re
 import unicodedata
+from typing import Any
 
 SMART_CHAR_MAP = str.maketrans(
     {
@@ -43,19 +44,43 @@ _CODE_PLACEHOLDER = "\x00CODE_BLOCK_{}\x00"
 _BOLD_PLACEHOLDER = "\x00BOLD_{}\x00"
 
 
-def _strip_invisible_chars(text: str) -> str:
-    """Strip invisible Unicode characters that Jira's REST API rejects.
+def _is_xml_valid(ch: str) -> bool:
+    """Check if a character is valid in XML 1.0.
 
-    Removes:
-    - Control characters (category Cc) except newline, carriage return, tab
+    Jira is a Java application that uses XML internally. Characters outside the
+    XML 1.0 valid range cause 'disallowed characters' errors. Valid ranges:
+    U+0009, U+000A, U+000D, U+0020-U+D7FF, U+E000-U+FFFD, U+10000-U+10FFFF.
+    """
+    code = ord(ch)
+    if code == 0x9 or code == 0xA or code == 0xD:
+        return True
+    if 0x20 <= code <= 0xD7FF:
+        return True
+    if 0xE000 <= code <= 0xFFFD:
+        return True
+    if 0x10000 <= code <= 0x10FFFF:
+        return True
+    return False
+
+
+def _strip_disallowed_chars(text: str) -> str:
+    """Strip characters that Jira's REST API rejects.
+
+    Uses the XML 1.0 valid character range as the baseline, then also removes:
+    - Control characters (category Cc) except tab, newline, carriage return
     - Format characters (category Cf) — zero-width spaces, BOM, directional marks
+    - Private Use Area characters (category Co) — can cause issues on some Jira instances
     """
     result: list[str] = []
     for ch in text:
+        if not _is_xml_valid(ch):
+            continue
         cat = unicodedata.category(ch)
         if cat == "Cc" and ch not in _ALLOWED_CONTROL_CHARS:
             continue
         if cat == "Cf":
+            continue
+        if cat == "Co":
             continue
         result.append(ch)
     return "".join(result)
@@ -74,7 +99,7 @@ def sanitize_text(text: str) -> str:
     """
     text = unicodedata.normalize("NFC", text)
     text = text.translate(SMART_CHAR_MAP)
-    text = _strip_invisible_chars(text)
+    text = _strip_disallowed_chars(text)
     text = _INLINE_CODE_RE.sub(r"{{\1}}", text)
     text = text.replace("`", "")
     return text
@@ -144,6 +169,9 @@ def markdown_to_jira(text: str) -> str:
 
     text = _MD_FENCED_CODE_RE.sub(_extract_code, text)
 
+    text = _INLINE_CODE_RE.sub(r"{{\1}}", text)
+    text = text.replace("`", "")
+
     text = _MD_HEADING_RE.sub(_replace_heading, text)
 
     bold_parts: list[str] = []
@@ -182,15 +210,35 @@ def markdown_to_jira(text: str) -> str:
 def sanitize_long_text(text: str) -> str:
     """Sanitize long-form text fields (descriptions, comments).
 
-    Chains sanitize_text (unicode normalization, smart quotes, inline code)
-    with markdown_to_jira (full markdown-to-wiki-markup conversion).
+    Performs unicode normalization, smart-quote replacement, and disallowed
+    character stripping, then converts fenced code blocks before stripping
+    remaining backticks, and finally converts remaining markdown to Jira wiki
+    markup.
 
     Use this for description and comment body fields. Use sanitize_text()
     for short fields like summary, labels, and filter names.
     """
-    text = sanitize_text(text)
+    text = unicodedata.normalize("NFC", text)
+    text = text.translate(SMART_CHAR_MAP)
+    text = _strip_disallowed_chars(text)
     text = markdown_to_jira(text)
     return text
+
+
+def sanitize_value(value: Any) -> Any:
+    """Recursively sanitize string values in a nested structure.
+
+    Applies sanitize_text() to all string leaves. Dicts and lists are
+    traversed recursively. Non-string scalars (int, float, bool, None)
+    pass through unchanged.
+    """
+    if isinstance(value, str):
+        return sanitize_text(value)
+    if isinstance(value, dict):
+        return {k: sanitize_value(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [sanitize_value(item) for item in value]
+    return value
 
 
 def escape_jql_value(value: str) -> str:
