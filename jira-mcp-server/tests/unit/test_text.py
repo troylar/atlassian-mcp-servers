@@ -78,6 +78,59 @@ class TestSanitizeText:
     def test_no_backticks_passthrough(self) -> None:
         assert sanitize_text("no backticks here") == "no backticks here"
 
+    def test_strip_zero_width_space(self) -> None:
+        assert sanitize_text("hello\u200bworld") == "helloworld"
+
+    def test_strip_zero_width_non_joiner(self) -> None:
+        assert sanitize_text("hello\u200cworld") == "helloworld"
+
+    def test_strip_zero_width_joiner(self) -> None:
+        assert sanitize_text("hello\u200dworld") == "helloworld"
+
+    def test_strip_left_to_right_mark(self) -> None:
+        assert sanitize_text("hello\u200eworld") == "helloworld"
+
+    def test_strip_right_to_left_mark(self) -> None:
+        assert sanitize_text("hello\u200fworld") == "helloworld"
+
+    def test_strip_byte_order_mark(self) -> None:
+        assert sanitize_text("\ufeffhello") == "hello"
+
+    def test_strip_word_joiner(self) -> None:
+        assert sanitize_text("hello\u2060world") == "helloworld"
+
+    def test_non_breaking_space_to_space(self) -> None:
+        assert sanitize_text("hello\u00a0world") == "hello world"
+
+    def test_strip_null_byte(self) -> None:
+        assert sanitize_text("hello\x00world") == "helloworld"
+
+    def test_strip_bell_char(self) -> None:
+        assert sanitize_text("hello\x07world") == "helloworld"
+
+    def test_strip_form_feed(self) -> None:
+        assert sanitize_text("hello\x0cworld") == "helloworld"
+
+    def test_preserve_newline(self) -> None:
+        assert sanitize_text("line1\nline2") == "line1\nline2"
+
+    def test_preserve_tab(self) -> None:
+        assert sanitize_text("col1\tcol2") == "col1\tcol2"
+
+    def test_preserve_carriage_return(self) -> None:
+        assert sanitize_text("line1\r\nline2") == "line1\r\nline2"
+
+    def test_strip_soft_hyphen(self) -> None:
+        assert sanitize_text("auto\u00admatic") == "automatic"
+
+    def test_mixed_invisible_and_smart_chars(self) -> None:
+        text = "\ufeff\u201chello\u200b world\u201d"
+        assert sanitize_text(text) == '"hello world"'
+
+    def test_strip_multiple_invisible_chars(self) -> None:
+        text = "\u200b\u200c\u200d\u200e\u200f\ufeff\u2060"
+        assert sanitize_text(text) == ""
+
 
 class TestMarkdownToJira:
     def test_passthrough_plain_text(self) -> None:

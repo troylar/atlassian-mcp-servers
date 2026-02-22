@@ -53,7 +53,11 @@ class JiraClient:
 
                 if errors:
                     error_str = ", ".join(f"{field}: {msg}" for field, msg in errors.items())
-                    raise ValueError(f"Validation error: {error_str}")
+                    hint = self._disallowed_char_hint(errors, response)
+                    msg = f"Validation error: {error_str}"
+                    if hint:
+                        msg += f" | Hint: {hint}"
+                    raise ValueError(msg)
                 elif messages:
                     raise ValueError(f"Validation error: {', '.join(messages)}")
             except (ValueError, KeyError) as e:
@@ -64,6 +68,29 @@ class JiraClient:
             raise ValueError(f"Bad request: {response.text[:200]}")
         else:
             raise ValueError(f"Jira API error ({status}): {response.text[:200]}")
+
+    @staticmethod
+    def _disallowed_char_hint(errors: Dict[str, str], response: httpx.Response) -> str:
+        """When Jira reports 'disallowed characters', identify suspicious chars in the request body."""
+        all_msgs = " ".join(str(v) for v in errors.values())
+        if "disallowed" not in all_msgs.lower():
+            return ""
+        try:
+            body = response.request.content.decode("utf-8", errors="replace")
+        except Exception:
+            return ""
+        suspicious: list[str] = []
+        for ch in body:
+            code = ord(ch)
+            if code > 127 and ch not in '"\u00e9\u00e8\u00e0\u00f1\u00fc':
+                name = f"U+{code:04X}"
+                if name not in suspicious:
+                    suspicious.append(name)
+            if len(suspicious) >= 10:
+                break
+        if not suspicious:
+            return "No obvious non-ASCII characters found in request. Check for wiki markup syntax issues."
+        return f"Non-ASCII characters in request body: {', '.join(suspicious)}"
 
     def _get_resource_type(self, response: httpx.Response) -> str:
         url = str(response.request.url)

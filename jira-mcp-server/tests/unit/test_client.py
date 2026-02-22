@@ -1037,8 +1037,63 @@ class TestHandleError:
     def test_400_with_errors_dict(self) -> None:
         client = JiraClient(_make_config())
         resp = _mock_response(400, {"errors": {"summary": "Field is required"}, "errorMessages": []})
+        resp.request.content = b'{"fields": {"summary": "test"}}'
         with pytest.raises(ValueError, match="Validation error: summary: Field is required"):
             client._handle_error(resp)
+
+    def test_400_disallowed_chars_with_non_ascii(self) -> None:
+        client = JiraClient(_make_config())
+        resp = _mock_response(
+            400,
+            {"errors": {"description": "contains disallowed characters"}, "errorMessages": []},
+        )
+        resp.request.content = "hello \u200b world".encode("utf-8")
+        with pytest.raises(ValueError, match="Hint: Non-ASCII characters in request body: U\\+200B"):
+            client._handle_error(resp)
+
+    def test_400_disallowed_chars_no_non_ascii(self) -> None:
+        client = JiraClient(_make_config())
+        resp = _mock_response(
+            400,
+            {"errors": {"description": "contains disallowed characters"}, "errorMessages": []},
+        )
+        resp.request.content = b"plain ascii text"
+        with pytest.raises(ValueError, match="Hint: No obvious non-ASCII characters"):
+            client._handle_error(resp)
+
+    def test_400_non_disallowed_error_no_hint(self) -> None:
+        client = JiraClient(_make_config())
+        resp = _mock_response(400, {"errors": {"summary": "Field is required"}, "errorMessages": []})
+        resp.request.content = b'{"fields": {"summary": ""}}'
+        with pytest.raises(ValueError, match="^Validation error: summary: Field is required$"):
+            client._handle_error(resp)
+
+    def test_400_disallowed_chars_decode_error(self) -> None:
+        client = JiraClient(_make_config())
+        resp = _mock_response(
+            400,
+            {"errors": {"description": "contains disallowed characters"}, "errorMessages": []},
+        )
+        resp.request.content = MagicMock()
+        resp.request.content.decode = MagicMock(side_effect=Exception("decode failed"))
+        with pytest.raises(ValueError, match="Validation error"):
+            client._handle_error(resp)
+
+    def test_400_disallowed_chars_max_10_suspicious(self) -> None:
+        client = JiraClient(_make_config())
+        resp = _mock_response(
+            400,
+            {"errors": {"description": "contains disallowed characters"}, "errorMessages": []},
+        )
+        many_non_ascii = "".join(chr(0x0100 + i) for i in range(20))
+        resp.request.content = many_non_ascii.encode("utf-8")
+        with pytest.raises(ValueError, match="Hint: Non-ASCII characters"):
+            client._handle_error(resp)
+        try:
+            client._handle_error(resp)
+        except ValueError as e:
+            chars = str(e).split("Non-ASCII characters in request body: ")[1].split(", ")
+            assert len(chars) == 10
 
     def test_400_with_error_messages(self) -> None:
         client = JiraClient(_make_config())
