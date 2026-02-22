@@ -1,5 +1,6 @@
 """Text sanitization utilities for Jira API compatibility."""
 
+import re
 import unicodedata
 
 SMART_CHAR_MAP = str.maketrans(
@@ -14,6 +15,8 @@ SMART_CHAR_MAP = str.maketrans(
     }
 )
 
+_INLINE_CODE_RE = re.compile(r"`([^`]+)`")
+
 
 def sanitize_text(text: str) -> str:
     """Normalize unicode and replace smart quotes/dashes with ASCII equivalents.
@@ -21,9 +24,15 @@ def sanitize_text(text: str) -> str:
     MCP clients often send smart/curly quotes and other unicode characters
     that Jira's REST API rejects. This function normalizes text to prevent
     'disallowed characters' errors.
+
+    Also converts markdown inline code (backticks) to Jira wiki markup,
+    since Jira rejects backtick characters.
     """
     text = unicodedata.normalize("NFC", text)
-    return text.translate(SMART_CHAR_MAP)
+    text = text.translate(SMART_CHAR_MAP)
+    text = _INLINE_CODE_RE.sub(r"{{\1}}", text)
+    text = text.replace("`", "")
+    return text
 
 
 def escape_jql_value(value: str) -> str:

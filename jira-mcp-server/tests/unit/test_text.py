@@ -54,6 +54,31 @@ class TestSanitizeText:
         expected = 'assignee = f12345 AND resolution = "Unresolved"'
         assert sanitize_text(jql) == expected
 
+    def test_inline_code_backticks(self) -> None:
+        assert sanitize_text("use `foo` here") == "use {{foo}} here"
+
+    def test_multiple_inline_code(self) -> None:
+        assert sanitize_text("`a` and `b`") == "{{a}} and {{b}}"
+
+    def test_stray_backtick_removed(self) -> None:
+        assert sanitize_text("it`s broken") == "its broken"
+
+    def test_backtick_at_start_and_end(self) -> None:
+        assert sanitize_text("`code`") == "{{code}}"
+
+    def test_mixed_backticks_and_smart_quotes(self) -> None:
+        text = "\u201cuse `cmd` here\u201d"
+        assert sanitize_text(text) == '"use {{cmd}} here"'
+
+    def test_triple_backtick_stripped(self) -> None:
+        assert sanitize_text("```hello```") == "{{hello}}"
+
+    def test_empty_backticks_stripped(self) -> None:
+        assert sanitize_text("``") == ""
+
+    def test_no_backticks_passthrough(self) -> None:
+        assert sanitize_text("no backticks here") == "no backticks here"
+
 
 class TestEscapeJqlValue:
     def test_simple_value(self) -> None:
