@@ -74,6 +74,14 @@ from jira_mcp_server.tools.workflow_tools import (
 
 mcp = FastMCP("jira-mcp-server")
 
+_client: JiraClient | None = None
+
+
+def _get_client() -> JiraClient:  # pragma: no cover
+    if _client is None:  # pragma: no cover
+        raise RuntimeError("Jira client not initialized — server not started")  # pragma: no cover
+    return _client  # pragma: no cover
+
 
 # --- Health Check ---
 
@@ -614,30 +622,22 @@ def jira_attachment_delete_tool(attachment_id: str) -> Dict[str, Any]:
 @mcp.tool()
 def jira_priority_list_tool() -> List[Dict[str, Any]]:  # pragma: no cover
     """List all available Jira priorities."""
-    try:  # pragma: no cover
-        config = JiraConfig()  # type: ignore[call-arg]  # pragma: no cover
-        client = JiraClient(config)  # pragma: no cover
-        return client.list_priorities()  # pragma: no cover
-    except Exception as e:  # pragma: no cover
-        raise ValueError(f"List priorities failed: {str(e)}")  # pragma: no cover
+    return _get_client().list_priorities()  # pragma: no cover
 
 
 @mcp.tool()
 def jira_status_list_tool() -> List[Dict[str, Any]]:  # pragma: no cover
     """List all available Jira statuses."""
-    try:  # pragma: no cover
-        config = JiraConfig()  # type: ignore[call-arg]  # pragma: no cover
-        client = JiraClient(config)  # pragma: no cover
-        return client.list_statuses()  # pragma: no cover
-    except Exception as e:  # pragma: no cover
-        raise ValueError(f"List statuses failed: {str(e)}")  # pragma: no cover
+    return _get_client().list_statuses()  # pragma: no cover
 
 
 def main() -> None:
     """Main entry point for the Jira MCP server."""
     try:
+        global _client
         config = JiraConfig()  # type: ignore[call-arg]
         client = JiraClient(config)
+        _client = client
 
         initialize_issue_tools(config)
         initialize_search_tools(client)
@@ -650,7 +650,10 @@ def main() -> None:
         initialize_user_tools(client)
         initialize_attachment_tools(client)
 
-        print("Starting Jira MCP Server v2.0.0...")
+        from importlib.metadata import version as pkg_version
+
+        _version = pkg_version("atlassian-jira-mcp")
+        print(f"Starting Jira MCP Server v{_version}...")
         print(f"Jira URL: {config.url}")
         print(f"Auth Type: {config.auth_type.value if config.auth_type else 'auto'}")
         print(f"Cache TTL: {config.cache_ttl}s")

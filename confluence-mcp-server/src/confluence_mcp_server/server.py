@@ -437,7 +437,7 @@ def confluence_user_current() -> Dict[str, Any]:  # pragma: no cover
     return _get_client().get_current_user()  # pragma: no cover
 
 
-# --- Blog Tools (4 tools) ---
+# --- Blog Tools (5 tools) ---
 
 
 @mcp.tool()
@@ -491,6 +491,17 @@ def confluence_blog_update(
         version: Current version number
     """
     return _get_client().update_blog(blog_id, title, body, version)  # pragma: no cover
+
+
+@mcp.tool()
+def confluence_blog_delete(blog_id: str) -> Dict[str, Any]:  # pragma: no cover
+    """Delete a blog post.
+
+    Args:
+        blog_id: Blog post ID
+    """
+    _get_client().delete_blog(blog_id)  # pragma: no cover
+    return {"success": True, "message": f"Blog {blog_id} deleted"}  # pragma: no cover
 
 
 # --- Permission Tools (2 tools) ---
@@ -584,7 +595,10 @@ def main() -> None:
         config = ConfluenceConfig()  # type: ignore[call-arg]
         _client = ConfluenceClient(config)
 
-        print("Starting Confluence MCP Server v1.0.0...")
+        from importlib.metadata import version as pkg_version
+
+        _version = pkg_version("atlassian-confluence-mcp")
+        print(f"Starting Confluence MCP Server v{_version}...")
         print(f"Confluence URL: {config.url}")
         print(f"Auth Type: {config.auth_type.value if config.auth_type else 'auto'}")
         print(f"Timeout: {config.timeout}s")

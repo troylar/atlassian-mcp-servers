@@ -639,7 +639,10 @@ def main() -> None:
         config = BitbucketConfig()  # type: ignore[call-arg]
         _client = BitbucketClient(config)
 
-        print("Starting Bitbucket MCP Server v1.0.0...")
+        from importlib.metadata import version as pkg_version
+
+        _version = pkg_version("atlassian-bitbucket-mcp")
+        print(f"Starting Bitbucket MCP Server v{_version}...")
         print(f"Bitbucket URL: {config.url}")
         print(f"Auth Type: {config.auth_type.value if config.auth_type else 'auto'}")
         print(f"Timeout: {config.timeout}s")
