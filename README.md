@@ -5,7 +5,7 @@ A monorepo of [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) s
 | Server | Tools | Package |
 |--------|-------|---------|
 | [Jira](jira-mcp-server/) | 37 | `atlassian-jira-mcp` |
-| [Confluence](confluence-mcp-server/) | 39 | `atlassian-confluence-mcp` |
+| [Confluence](confluence-mcp-server/) | 40 | `atlassian-confluence-mcp` |
 | [Bitbucket](bitbucket-mcp-server/) | 44 | `atlassian-bitbucket-mcp` |
 
 ## Structure
