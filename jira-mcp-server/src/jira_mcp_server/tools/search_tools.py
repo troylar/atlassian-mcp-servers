@@ -3,6 +3,7 @@
 from typing import Any, Dict, List, Optional
 
 from jira_mcp_server.client import JiraClient
+from jira_mcp_server.utils.text import escape_jql_value, sanitize_text
 
 _client: Optional[JiraClient] = None
 
@@ -25,27 +26,27 @@ def build_jql_from_criteria(
 ) -> str:
     clauses: List[str] = []
     if project:
-        clauses.append(f"project = {project}")
+        clauses.append(f"project = {escape_jql_value(project)}")
     if assignee:
         if assignee == "currentUser()":
             clauses.append("assignee = currentUser()")
         else:
-            clauses.append(f"assignee = {assignee}")
+            clauses.append(f"assignee = {escape_jql_value(assignee)}")
     if status:
-        clauses.append(f'status = "{status}"')
+        clauses.append(f"status = {escape_jql_value(status)}")
     if priority:
-        clauses.append(f'priority = "{priority}"')
+        clauses.append(f"priority = {escape_jql_value(priority)}")
     if labels:
         for label in labels:
-            clauses.append(f'labels = "{label}"')
+            clauses.append(f"labels = {escape_jql_value(label)}")
     if created_after:
-        clauses.append(f'created >= "{created_after}"')
+        clauses.append(f"created >= {escape_jql_value(created_after)}")
     if created_before:
-        clauses.append(f'created <= "{created_before}"')
+        clauses.append(f"created <= {escape_jql_value(created_before)}")
     if updated_after:
-        clauses.append(f'updated >= "{updated_after}"')
+        clauses.append(f"updated >= {escape_jql_value(updated_after)}")
     if updated_before:
-        clauses.append(f'updated <= "{updated_before}"')
+        clauses.append(f"updated <= {escape_jql_value(updated_before)}")
     return " AND ".join(clauses) if clauses else ""
 
 
@@ -93,6 +94,6 @@ def jira_search_jql(
     if not jql or not jql.strip():
         raise ValueError("JQL query cannot be empty")
     try:
-        return _client.search_issues(jql=jql, max_results=max_results, start_at=start_at)
+        return _client.search_issues(jql=sanitize_text(jql), max_results=max_results, start_at=start_at)
     except Exception as e:
         raise ValueError(f"JQL search failed: {str(e)}")

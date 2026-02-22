@@ -435,12 +435,12 @@ class TestBuildJql:
     def test_project_only(self) -> None:
         from jira_mcp_server.tools.search_tools import build_jql_from_criteria
 
-        assert build_jql_from_criteria(project="TEST") == "project = TEST"
+        assert build_jql_from_criteria(project="TEST") == 'project = "TEST"'
 
     def test_assignee(self) -> None:
         from jira_mcp_server.tools.search_tools import build_jql_from_criteria
 
-        assert build_jql_from_criteria(assignee="john") == "assignee = john"
+        assert build_jql_from_criteria(assignee="john") == 'assignee = "john"'
 
     def test_assignee_current_user(self) -> None:
         from jira_mcp_server.tools.search_tools import build_jql_from_criteria

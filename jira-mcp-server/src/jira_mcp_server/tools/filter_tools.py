@@ -3,6 +3,7 @@
 from typing import Any, Dict, Optional
 
 from jira_mcp_server.client import JiraClient
+from jira_mcp_server.utils.text import sanitize_text
 
 _client: Optional[JiraClient] = None
 
@@ -22,7 +23,12 @@ def jira_filter_create(
     if not jql or not jql.strip():
         raise ValueError("JQL query cannot be empty")
     try:
-        return _client.create_filter(name=name, jql=jql, description=description, favourite=favourite)
+        return _client.create_filter(
+            name=sanitize_text(name),
+            jql=sanitize_text(jql),
+            description=sanitize_text(description) if description else description,
+            favourite=favourite,
+        )
     except Exception as e:
         raise ValueError(f"Filter creation failed: {str(e)}")
 
@@ -77,7 +83,11 @@ def jira_filter_update(
         raise ValueError("At least one field must be provided to update")
     try:
         return _client.update_filter(
-            filter_id=filter_id, name=name, jql=jql, description=description, favourite=favourite
+            filter_id=filter_id,
+            name=sanitize_text(name) if name else name,
+            jql=sanitize_text(jql) if jql else jql,
+            description=sanitize_text(description) if description else description,
+            favourite=favourite,
         )
     except Exception as e:
         raise ValueError(f"Filter update failed: {str(e)}")
