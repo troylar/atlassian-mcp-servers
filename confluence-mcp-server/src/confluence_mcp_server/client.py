@@ -524,6 +524,15 @@ class ConfluenceClient:
     def get_blog(self, blog_id: str) -> Dict[str, Any]:
         return self.get_page(blog_id)
 
+    def delete_blog(self, blog_id: str) -> None:
+        url = f"{self._api_base}/content/{blog_id}"
+        try:
+            response = self._request("DELETE", url)
+            if response.status_code != 204:
+                self._handle_error(response)
+        except httpx.TimeoutException:
+            raise ValueError(f"Timeout deleting blog {blog_id}")
+
     def update_blog(self, blog_id: str, title: str, body: str, version: int) -> Dict[str, Any]:
         url = f"{self._api_base}/content/{blog_id}"
         payload = {

@@ -1169,6 +1169,30 @@ class TestUpdateBlog:
                 client.update_blog("b1", "T", "<p>x</p>", 1)
 
 
+class TestDeleteBlog:
+    def test_delete_success(self) -> None:
+        config = _make_config(auth_type=AuthType.PAT)
+        client = ConfluenceClient(config)
+        resp = _mock_response(204)
+        with patch.object(client, "_request", return_value=resp):
+            client.delete_blog("b1")
+
+    def test_delete_not_found(self) -> None:
+        config = _make_config(auth_type=AuthType.PAT)
+        client = ConfluenceClient(config)
+        resp = _mock_response(404)
+        with patch.object(client, "_request", return_value=resp):
+            with pytest.raises(ValueError, match="Resource not found"):
+                client.delete_blog("b999")
+
+    def test_delete_timeout(self) -> None:
+        config = _make_config(auth_type=AuthType.PAT)
+        client = ConfluenceClient(config)
+        with patch.object(client, "_request", side_effect=httpx.TimeoutException("t")):
+            with pytest.raises(ValueError, match="Timeout deleting blog"):
+                client.delete_blog("b1")
+
+
 class TestGetPagePermissions:
     def test_success(self) -> None:
         config = _make_config(auth_type=AuthType.PAT)
