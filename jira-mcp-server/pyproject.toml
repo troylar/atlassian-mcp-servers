@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "atlassian-jira-mcp"
-version = "2.0.0"
+version = "2.0.1"
 description = "MCP server for Jira with dual auth (Cloud + Data Center), full CRUD, JQL search, workflows, and more"
 readme = {file = "../README.md", content-type = "text/markdown"}
 requires-python = ">=3.10"
