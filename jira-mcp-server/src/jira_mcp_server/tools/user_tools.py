@@ -3,6 +3,7 @@
 from typing import Any, Dict, List, Optional
 
 from jira_mcp_server.client import JiraClient
+from jira_mcp_server.utils.text import sanitize_text
 
 _client: Optional[JiraClient] = None
 
@@ -18,7 +19,7 @@ def jira_user_search(query: str, max_results: int = 50) -> List[Dict[str, Any]]:
     if not query or not query.strip():
         raise ValueError("Search query cannot be empty")
     try:
-        return _client.search_users(query, max_results=max_results)
+        return _client.search_users(sanitize_text(query), max_results=max_results)
     except Exception as e:
         raise ValueError(f"User search failed: {str(e)}")
 

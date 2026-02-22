@@ -6,6 +6,7 @@ from jira_mcp_server.client import JiraClient
 from jira_mcp_server.config import JiraConfig
 from jira_mcp_server.models import FieldSchema, FieldType, FieldValidationError
 from jira_mcp_server.schema_cache import SchemaCache
+from jira_mcp_server.utils.text import sanitize_text
 from jira_mcp_server.validators import FieldValidator
 
 _client: Optional[JiraClient] = None
@@ -95,18 +96,18 @@ def jira_issue_create(
 
     fields: Dict[str, Any] = {
         "project": {"key": project},
-        "summary": summary,
+        "summary": sanitize_text(summary),
         "issuetype": {"name": issue_type},
     }
 
     if description:
-        fields["description"] = description
+        fields["description"] = sanitize_text(description)
     if priority:
         fields["priority"] = {"name": priority}
     if assignee:
         fields["assignee"] = {"name": assignee}
     if labels:
-        fields["labels"] = labels
+        fields["labels"] = [sanitize_text(label) for label in labels]
     if due_date:
         fields["duedate"] = due_date
 
@@ -140,15 +141,15 @@ def jira_issue_update(
 
     fields: Dict[str, Any] = {}
     if summary is not None:
-        fields["summary"] = summary
+        fields["summary"] = sanitize_text(summary)
     if description is not None:
-        fields["description"] = description
+        fields["description"] = sanitize_text(description)
     if priority is not None:
         fields["priority"] = {"name": priority}
     if assignee is not None:
         fields["assignee"] = {"name": assignee}
     if labels is not None:
-        fields["labels"] = labels
+        fields["labels"] = [sanitize_text(label) for label in labels]
     if due_date is not None:
         fields["duedate"] = due_date
 
