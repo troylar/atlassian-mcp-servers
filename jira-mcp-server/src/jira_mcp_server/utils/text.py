@@ -12,8 +12,11 @@ SMART_CHAR_MAP = str.maketrans(
         "\u2013": "-",
         "\u2014": "-",
         "\u2026": "...",
+        "\u00a0": " ",  # non-breaking space → regular space
     }
 )
+
+_ALLOWED_CONTROL_CHARS = frozenset("\n\r\t")
 
 _INLINE_CODE_RE = re.compile(r"`([^`]+)`")
 
@@ -40,18 +43,38 @@ _CODE_PLACEHOLDER = "\x00CODE_BLOCK_{}\x00"
 _BOLD_PLACEHOLDER = "\x00BOLD_{}\x00"
 
 
+def _strip_invisible_chars(text: str) -> str:
+    """Strip invisible Unicode characters that Jira's REST API rejects.
+
+    Removes:
+    - Control characters (category Cc) except newline, carriage return, tab
+    - Format characters (category Cf) — zero-width spaces, BOM, directional marks
+    """
+    result: list[str] = []
+    for ch in text:
+        cat = unicodedata.category(ch)
+        if cat == "Cc" and ch not in _ALLOWED_CONTROL_CHARS:
+            continue
+        if cat == "Cf":
+            continue
+        result.append(ch)
+    return "".join(result)
+
+
 def sanitize_text(text: str) -> str:
     """Normalize unicode and replace smart quotes/dashes with ASCII equivalents.
 
-    MCP clients often send smart/curly quotes and other unicode characters
-    that Jira's REST API rejects. This function normalizes text to prevent
-    'disallowed characters' errors.
+    MCP clients often send smart/curly quotes, invisible Unicode characters,
+    and other characters that Jira's REST API rejects. This function normalizes
+    text to prevent 'disallowed characters' errors.
 
-    Also converts markdown inline code (backticks) to Jira wiki markup,
-    since Jira rejects backtick characters.
+    Strips: control chars, zero-width chars, BOM, directional marks.
+    Replaces: smart quotes, em/en dashes, ellipsis, non-breaking spaces.
+    Converts: markdown inline code (backticks) to Jira wiki markup {{...}}.
     """
     text = unicodedata.normalize("NFC", text)
     text = text.translate(SMART_CHAR_MAP)
+    text = _strip_invisible_chars(text)
     text = _INLINE_CODE_RE.sub(r"{{\1}}", text)
     text = text.replace("`", "")
     return text
