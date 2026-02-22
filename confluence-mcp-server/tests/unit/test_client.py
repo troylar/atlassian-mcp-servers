@@ -1282,6 +1282,141 @@ class TestHandleError:
             client._handle_error(resp)
 
 
+class TestRenderMacro:
+    def _make_client(self) -> ConfluenceClient:
+        config = _make_config(auth_type=AuthType.PAT)
+        return ConfluenceClient(config)
+
+    def test_simple_macro_no_params_no_body(self) -> None:
+        client = self._make_client()
+        result = client.render_macro("toc")
+        assert result["macro_name"] == "toc"
+        assert result["xhtml"] == '<ac:structured-macro ac:name="toc"></ac:structured-macro>'
+
+    def test_macro_with_parameters(self) -> None:
+        client = self._make_client()
+        result = client.render_macro("toc", parameters={"maxLevel": "3", "printable": "false"})
+        xhtml = result["xhtml"]
+        assert '<ac:parameter ac:name="maxLevel">3</ac:parameter>' in xhtml
+        assert '<ac:parameter ac:name="printable">false</ac:parameter>' in xhtml
+        assert xhtml.startswith('<ac:structured-macro ac:name="toc">')
+        assert xhtml.endswith("</ac:structured-macro>")
+
+    def test_macro_with_plain_text_body(self) -> None:
+        client = self._make_client()
+        result = client.render_macro("code", body="print('hello')", body_type="plain-text-body")
+        xhtml = result["xhtml"]
+        assert "<ac:plain-text-body><![CDATA[print('hello')]]></ac:plain-text-body>" in xhtml
+
+    def test_macro_with_rich_text_body(self) -> None:
+        client = self._make_client()
+        result = client.render_macro("panel", body="<p>Panel content</p>")
+        xhtml = result["xhtml"]
+        assert "<ac:rich-text-body><p>Panel content</p></ac:rich-text-body>" in xhtml
+
+    def test_macro_with_params_and_body(self) -> None:
+        client = self._make_client()
+        result = client.render_macro(
+            "code",
+            parameters={"language": "python", "title": "Example"},
+            body="x = 1",
+            body_type="plain-text-body",
+        )
+        xhtml = result["xhtml"]
+        assert '<ac:parameter ac:name="language">python</ac:parameter>' in xhtml
+        assert '<ac:parameter ac:name="title">Example</ac:parameter>' in xhtml
+        assert "<ac:plain-text-body><![CDATA[x = 1]]></ac:plain-text-body>" in xhtml
+
+    def test_cdata_escaping(self) -> None:
+        client = self._make_client()
+        result = client.render_macro("code", body="if (a]]>b) { }", body_type="plain-text-body")
+        xhtml = result["xhtml"]
+        assert "<ac:plain-text-body><![CDATA[if (a]]]]><![CDATA[>b) { }]]></ac:plain-text-body>" in xhtml
+
+    def test_xml_escape_in_parameter_values(self) -> None:
+        client = self._make_client()
+        result = client.render_macro("info", parameters={"title": "A & B <C>"})
+        xhtml = result["xhtml"]
+        assert "A &amp; B &lt;C&gt;" in xhtml
+
+    def test_xml_escape_in_parameter_keys(self) -> None:
+        client = self._make_client()
+        result = client.render_macro("test", parameters={"key&name": "value"})
+        xhtml = result["xhtml"]
+        assert 'ac:name="key&amp;name"' in xhtml
+
+    def test_empty_macro_name_raises(self) -> None:
+        client = self._make_client()
+        with pytest.raises(ValueError, match="macro_name must not be empty"):
+            client.render_macro("")
+
+    def test_whitespace_only_macro_name_raises(self) -> None:
+        client = self._make_client()
+        with pytest.raises(ValueError, match="macro_name must not be empty"):
+            client.render_macro("   ")
+
+    def test_invalid_macro_name_raises(self) -> None:
+        client = self._make_client()
+        with pytest.raises(ValueError, match="Invalid macro_name"):
+            client.render_macro("bad macro!")
+
+    def test_macro_name_starting_with_digit_raises(self) -> None:
+        client = self._make_client()
+        with pytest.raises(ValueError, match="Invalid macro_name"):
+            client.render_macro("123macro")
+
+    def test_invalid_body_type_raises(self) -> None:
+        client = self._make_client()
+        with pytest.raises(ValueError, match="Invalid body_type"):
+            client.render_macro("code", body="x", body_type="unknown")
+
+    def test_custom_plugin_macro_name(self) -> None:
+        client = self._make_client()
+        result = client.render_macro("my-custom-plugin")
+        assert result["macro_name"] == "my-custom-plugin"
+        assert 'ac:name="my-custom-plugin"' in result["xhtml"]
+
+    def test_macro_name_with_underscore(self) -> None:
+        client = self._make_client()
+        result = client.render_macro("my_macro")
+        assert result["macro_name"] == "my_macro"
+
+    def test_macro_name_stripped(self) -> None:
+        client = self._make_client()
+        result = client.render_macro("  toc  ")
+        assert result["macro_name"] == "toc"
+        assert 'ac:name="toc"' in result["xhtml"]
+
+    def test_body_none_omits_body_element(self) -> None:
+        client = self._make_client()
+        result = client.render_macro("toc", body=None)
+        assert "plain-text-body" not in result["xhtml"]
+        assert "rich-text-body" not in result["xhtml"]
+
+    def test_empty_parameters_dict(self) -> None:
+        client = self._make_client()
+        result = client.render_macro("toc", parameters={})
+        assert "<ac:parameter" not in result["xhtml"]
+
+    def test_body_with_newlines_preserved(self) -> None:
+        client = self._make_client()
+        code = "line1\nline2\nline3"
+        result = client.render_macro("code", body=code, body_type="plain-text-body")
+        assert "line1\nline2\nline3" in result["xhtml"]
+
+    def test_multiple_cdata_escapes(self) -> None:
+        client = self._make_client()
+        result = client.render_macro("code", body="a]]>b]]>c", body_type="plain-text-body")
+        xhtml = result["xhtml"]
+        assert "<![CDATA[a]]]]><![CDATA[>b]]]]><![CDATA[>c]]>" in xhtml
+
+    def test_rich_text_body_default(self) -> None:
+        client = self._make_client()
+        result = client.render_macro("expand", body="<p>content</p>")
+        assert "<ac:rich-text-body>" in result["xhtml"]
+        assert "<ac:plain-text-body>" not in result["xhtml"]
+
+
 class TestRequestMethod:
     def test_request_creates_httpx_client(self) -> None:
         config = _make_config(auth_type=AuthType.PAT, timeout=45, verify_ssl=False)

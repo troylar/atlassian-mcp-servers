@@ -519,6 +519,39 @@ def confluence_permissions_set(
     return _get_client().set_page_permissions(page_id, restrictions)  # pragma: no cover
 
 
+# --- Macro Tools (1 tool) ---
+
+
+@mcp.tool()
+def confluence_macro_render(
+    macro_name: str,
+    parameters: Dict[str, str] | None = None,
+    body: str | None = None,
+    body_type: str = "rich-text-body",
+) -> Dict[str, Any]:  # pragma: no cover
+    """Render a Confluence macro as storage-format XHTML.
+
+    Returns XHTML that can be embedded in page body content. Works with any
+    macro name — built-in (code, toc, panel) or third-party plugins.
+
+    Args:
+        macro_name: Macro identifier (e.g., "code", "toc", "panel", "info",
+                    "warning", "expand", "note", "excerpt", or any plugin macro)
+        parameters: Optional macro parameters as key-value pairs
+        body: Optional macro body content
+        body_type: Body wrapping — "plain-text-body" for code/noformat (CDATA),
+                   "rich-text-body" for panel/expand/info (XHTML). Default: "rich-text-body"
+
+    Examples:
+        Table of contents: macro_name="toc"
+        Code block: macro_name="code", parameters={"language": "python"},
+            body="print('hello')", body_type="plain-text-body"
+        Info panel: macro_name="info", parameters={"title": "Note"}, body="<p>Important info</p>"
+        Expand section: macro_name="expand", parameters={"title": "Details"}, body="<p>Hidden content</p>"
+    """
+    return _get_client().render_macro(macro_name, parameters, body, body_type)  # pragma: no cover
+
+
 def main() -> None:
     """Main entry point for the Confluence MCP server."""
     try:
