@@ -6,7 +6,7 @@ from jira_mcp_server.client import JiraClient
 from jira_mcp_server.config import JiraConfig
 from jira_mcp_server.models import FieldSchema, FieldType, FieldValidationError
 from jira_mcp_server.schema_cache import SchemaCache
-from jira_mcp_server.utils.text import sanitize_long_text, sanitize_text
+from jira_mcp_server.utils.text import sanitize_long_text, sanitize_text, sanitize_value
 from jira_mcp_server.validators import FieldValidator
 
 _client: Optional[JiraClient] = None
@@ -103,16 +103,16 @@ def jira_issue_create(
     if description:
         fields["description"] = sanitize_long_text(description)
     if priority:
-        fields["priority"] = {"name": priority}
+        fields["priority"] = {"name": sanitize_text(priority)}
     if assignee:
-        fields["assignee"] = {"name": assignee}
+        fields["assignee"] = {"name": sanitize_text(assignee)}
     if labels:
         fields["labels"] = [sanitize_text(label) for label in labels]
     if due_date:
-        fields["duedate"] = due_date
+        fields["duedate"] = sanitize_text(due_date)
 
     for key, value in custom_fields.items():
-        fields[key] = value
+        fields[key] = sanitize_value(value)
 
     try:
         _validator.validate_fields(fields, schema)
@@ -145,16 +145,16 @@ def jira_issue_update(
     if description is not None:
         fields["description"] = sanitize_long_text(description)
     if priority is not None:
-        fields["priority"] = {"name": priority}
+        fields["priority"] = {"name": sanitize_text(priority)}
     if assignee is not None:
-        fields["assignee"] = {"name": assignee}
+        fields["assignee"] = {"name": sanitize_text(assignee)}
     if labels is not None:
         fields["labels"] = [sanitize_text(label) for label in labels]
     if due_date is not None:
-        fields["duedate"] = due_date
+        fields["duedate"] = sanitize_text(due_date)
 
     for key, value in custom_fields.items():
-        fields[key] = value
+        fields[key] = sanitize_value(value)
 
     if not fields:
         raise ValueError("No fields provided to update")
@@ -198,7 +198,7 @@ def jira_issue_link(link_type: str, inward_issue: str, outward_issue: str) -> Di
     if not outward_issue or not outward_issue.strip():
         raise ValueError("Outward issue key cannot be empty")
     try:
-        _client.link_issues(link_type=link_type, inward_issue=inward_issue, outward_issue=outward_issue)
+        _client.link_issues(link_type=sanitize_text(link_type), inward_issue=inward_issue, outward_issue=outward_issue)
         return {
             "success": True,
             "message": f"Linked {inward_issue} -> {outward_issue} ({link_type})",

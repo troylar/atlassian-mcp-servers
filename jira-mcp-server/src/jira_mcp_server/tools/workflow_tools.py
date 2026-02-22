@@ -3,6 +3,7 @@
 from typing import Any, Dict, Optional
 
 from jira_mcp_server.client import JiraClient
+from jira_mcp_server.utils.text import sanitize_value
 
 _client: Optional[JiraClient] = None
 
@@ -47,7 +48,8 @@ def jira_workflow_transition(
     if not transition_id or not transition_id.strip():
         raise ValueError("Transition ID cannot be empty")
     try:
-        _client.transition_issue(issue_key=issue_key, transition_id=transition_id, fields=fields)
+        sanitized_fields = sanitize_value(fields) if fields else fields
+        _client.transition_issue(issue_key=issue_key, transition_id=transition_id, fields=sanitized_fields)
         return {
             "success": True,
             "message": f"Issue {issue_key} transitioned successfully",
