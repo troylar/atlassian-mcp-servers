@@ -552,6 +552,31 @@ def confluence_macro_render(
     return _get_client().render_macro(macro_name, parameters, body, body_type)  # pragma: no cover
 
 
+# --- Markdown Conversion (1 tool) ---
+
+
+@mcp.tool()
+def confluence_content_from_markdown(markdown: str) -> Dict[str, Any]:  # pragma: no cover
+    """Convert markdown to Confluence storage format (XHTML).
+
+    Returns XHTML suitable for use in page/blog/comment body fields.
+    Code blocks become <ac:structured-macro> elements. All other elements
+    use standard HTML tags valid in Confluence storage format.
+
+    WARNING: The returned XHTML is intended for creating NEW content.
+    Using this output to replace an existing page body will destroy any
+    macros, plugin content (drawio, Jira filters, etc.), or rich formatting
+    that cannot be represented in markdown. Use confluence_page_create for
+    new pages, or carefully compose with existing content.
+
+    Args:
+        markdown: Markdown-formatted text to convert
+    """
+    from confluence_mcp_server.utils.text import markdown_to_storage  # pragma: no cover
+
+    return {"storage": markdown_to_storage(markdown)}  # pragma: no cover
+
+
 def main() -> None:
     """Main entry point for the Confluence MCP server."""
     try:
