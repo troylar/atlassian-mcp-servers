@@ -1,6 +1,6 @@
 """Tests for text sanitization utilities."""
 
-from jira_mcp_server.utils.text import escape_jql_value, sanitize_text
+from jira_mcp_server.utils.text import escape_jql_value, markdown_to_jira, sanitize_long_text, sanitize_text
 
 
 class TestSanitizeText:
@@ -37,7 +37,6 @@ class TestSanitizeText:
         assert sanitize_text(text) == expected
 
     def test_nfc_normalization(self) -> None:
-        # e + combining acute accent (NFD) should normalize to single char (NFC)
         nfd = "e\u0301"
         result = sanitize_text(nfd)
         assert result == "\u00e9"
@@ -80,6 +79,216 @@ class TestSanitizeText:
         assert sanitize_text("no backticks here") == "no backticks here"
 
 
+class TestMarkdownToJira:
+    def test_passthrough_plain_text(self) -> None:
+        assert markdown_to_jira("hello world") == "hello world"
+
+    def test_passthrough_empty_string(self) -> None:
+        assert markdown_to_jira("") == ""
+
+    def test_heading_h1(self) -> None:
+        assert markdown_to_jira("# Title") == "h1. Title"
+
+    def test_heading_h2(self) -> None:
+        assert markdown_to_jira("## Subtitle") == "h2. Subtitle"
+
+    def test_heading_h3(self) -> None:
+        assert markdown_to_jira("### Section") == "h3. Section"
+
+    def test_heading_h4(self) -> None:
+        assert markdown_to_jira("#### Sub-section") == "h4. Sub-section"
+
+    def test_heading_h5(self) -> None:
+        assert markdown_to_jira("##### Small") == "h5. Small"
+
+    def test_heading_h6(self) -> None:
+        assert markdown_to_jira("###### Tiny") == "h6. Tiny"
+
+    def test_heading_multiline(self) -> None:
+        text = "# First\nsome text\n## Second"
+        expected = "h1. First\nsome text\nh2. Second"
+        assert markdown_to_jira(text) == expected
+
+    def test_bold(self) -> None:
+        assert markdown_to_jira("**bold text**") == "*bold text*"
+
+    def test_bold_in_sentence(self) -> None:
+        assert markdown_to_jira("this is **important** stuff") == "this is *important* stuff"
+
+    def test_multiple_bold(self) -> None:
+        assert markdown_to_jira("**a** and **b**") == "*a* and *b*"
+
+    def test_italic_star(self) -> None:
+        assert markdown_to_jira("*italic text*") == "_italic text_"
+
+    def test_italic_star_in_sentence(self) -> None:
+        assert markdown_to_jira("this is *emphasized* here") == "this is _emphasized_ here"
+
+    def test_strikethrough(self) -> None:
+        assert markdown_to_jira("~~deleted~~") == "-deleted-"
+
+    def test_strikethrough_in_sentence(self) -> None:
+        assert markdown_to_jira("this is ~~wrong~~ right") == "this is -wrong- right"
+
+    def test_link(self) -> None:
+        assert markdown_to_jira("[Google](https://google.com)") == "[Google|https://google.com]"
+
+    def test_link_in_sentence(self) -> None:
+        text = "Visit [the docs](https://docs.example.com) for more"
+        expected = "Visit [the docs|https://docs.example.com] for more"
+        assert markdown_to_jira(text) == expected
+
+    def test_multiple_links(self) -> None:
+        text = "[a](http://a.com) and [b](http://b.com)"
+        expected = "[a|http://a.com] and [b|http://b.com]"
+        assert markdown_to_jira(text) == expected
+
+    def test_image(self) -> None:
+        assert markdown_to_jira("![alt](image.png)") == "!image.png!"
+
+    def test_image_with_url(self) -> None:
+        assert markdown_to_jira("![screenshot](https://example.com/img.png)") == "!https://example.com/img.png!"
+
+    def test_bullet_list_dash(self) -> None:
+        text = "- item one\n- item two"
+        expected = "* item one\n* item two"
+        assert markdown_to_jira(text) == expected
+
+    def test_bullet_list_star(self) -> None:
+        text = "* item one\n* item two"
+        expected = "* item one\n* item two"
+        assert markdown_to_jira(text) == expected
+
+    def test_numbered_list(self) -> None:
+        text = "1. first\n2. second\n3. third"
+        expected = "# first\n# second\n# third"
+        assert markdown_to_jira(text) == expected
+
+    def test_horizontal_rule_dashes(self) -> None:
+        assert markdown_to_jira("---") == "----"
+
+    def test_horizontal_rule_long(self) -> None:
+        assert markdown_to_jira("-----") == "----"
+
+    def test_horizontal_rule_stars(self) -> None:
+        assert markdown_to_jira("***") == "----"
+
+    def test_fenced_code_block_no_lang(self) -> None:
+        text = "```\nprint('hello')\n```"
+        expected = "{code}\nprint('hello')\n{code}"
+        assert markdown_to_jira(text) == expected
+
+    def test_fenced_code_block_with_lang(self) -> None:
+        text = "```python\ndef foo():\n    pass\n```"
+        expected = "{code:python}\ndef foo():\n    pass\n{code}"
+        assert markdown_to_jira(text) == expected
+
+    def test_fenced_code_block_java(self) -> None:
+        text = "```java\nSystem.out.println();\n```"
+        expected = "{code:java}\nSystem.out.println();\n{code}"
+        assert markdown_to_jira(text) == expected
+
+    def test_multiple_code_blocks(self) -> None:
+        text = "```\nfoo\n```\ntext\n```\nbar\n```"
+        expected = "{code}\nfoo\n{code}\ntext\n{code}\nbar\n{code}"
+        assert markdown_to_jira(text) == expected
+
+    def test_code_block_content_not_converted(self) -> None:
+        text = "```\n# not a heading\n**not bold**\n```"
+        expected = "{code}\n# not a heading\n**not bold**\n{code}"
+        assert markdown_to_jira(text) == expected
+
+    def test_lone_brace_stripped(self) -> None:
+        assert markdown_to_jira("use { and }") == "use  and "
+
+    def test_jira_inline_code_preserved(self) -> None:
+        assert markdown_to_jira("use {{foo}} here") == "use {{foo}} here"
+
+    def test_jira_code_macro_preserved(self) -> None:
+        text = "{code}\nsome code\n{code}"
+        assert markdown_to_jira(text) == text
+
+    def test_mixed_formatting(self) -> None:
+        text = "# Header\n\n**Bold** and *italic* text\n\n- item 1\n- item 2\n\n[link](http://example.com)"
+        expected = "h1. Header\n\n*Bold* and _italic_ text\n\n* item 1\n* item 2\n\n[link|http://example.com]"
+        assert markdown_to_jira(text) == expected
+
+    def test_bold_inside_heading(self) -> None:
+        assert markdown_to_jira("## **Important** Section") == "h2. *Important* Section"
+
+    def test_link_inside_bullet(self) -> None:
+        text = "- [docs](http://docs.com)"
+        expected = "* [docs|http://docs.com]"
+        assert markdown_to_jira(text) == expected
+
+    def test_hash_not_heading_mid_line(self) -> None:
+        assert markdown_to_jira("issue #123") == "issue #123"
+
+    def test_star_not_bold_single(self) -> None:
+        assert markdown_to_jira("a * b * c") == "a * b * c"
+
+    def test_preserves_plain_text_with_numbers(self) -> None:
+        assert markdown_to_jira("there are 3 items") == "there are 3 items"
+
+    def test_numbered_mid_line_not_converted(self) -> None:
+        assert markdown_to_jira("step 1. do this") == "step 1. do this"
+
+    def test_realistic_mcp_description(self) -> None:
+        text = (
+            "## Summary\n\n"
+            "This issue tracks **critical** bugs in the login module.\n\n"
+            "### Steps to Reproduce\n\n"
+            "1. Go to [login page](https://app.example.com/login)\n"
+            "2. Enter *invalid* credentials\n"
+            "3. Click submit\n\n"
+            "### Expected\n\n"
+            "- Show error message\n"
+            "- Keep form data\n\n"
+            "```python\ndef test():\n    assert True\n```"
+        )
+        expected = (
+            "h2. Summary\n\n"
+            "This issue tracks *critical* bugs in the login module.\n\n"
+            "h3. Steps to Reproduce\n\n"
+            "# Go to [login page|https://app.example.com/login]\n"
+            "# Enter _invalid_ credentials\n"
+            "# Click submit\n\n"
+            "h3. Expected\n\n"
+            "* Show error message\n"
+            "* Keep form data\n\n"
+            "{code:python}\ndef test():\n    assert True\n{code}"
+        )
+        assert markdown_to_jira(text) == expected
+
+
+class TestSanitizeLongText:
+    def test_passthrough_plain_text(self) -> None:
+        assert sanitize_long_text("hello world") == "hello world"
+
+    def test_passthrough_empty_string(self) -> None:
+        assert sanitize_long_text("") == ""
+
+    def test_smart_quotes_then_markdown(self) -> None:
+        text = "\u201c**bold**\u201d"
+        expected = '"*bold*"'
+        assert sanitize_long_text(text) == expected
+
+    def test_backticks_converted_before_markdown(self) -> None:
+        text = "use `code` and **bold**"
+        expected = "use {{code}} and *bold*"
+        assert sanitize_long_text(text) == expected
+
+    def test_full_chain(self) -> None:
+        text = "## \u201cHeader\u201d\n\n- `item` one\n- **two**"
+        expected = 'h2. "Header"\n\n* {{item}} one\n* *two*'
+        assert sanitize_long_text(text) == expected
+
+    def test_em_dash_and_heading(self) -> None:
+        text = "# Title \u2014 Subtitle"
+        expected = "h1. Title - Subtitle"
+        assert sanitize_long_text(text) == expected
+
+
 class TestEscapeJqlValue:
     def test_simple_value(self) -> None:
         assert escape_jql_value("In Progress") == '"In Progress"'
@@ -97,7 +306,6 @@ class TestEscapeJqlValue:
         assert escape_jql_value('a\\"b') == '"a\\\\\\"b"'
 
     def test_smart_quotes_replaced_then_escaped(self) -> None:
-        # Smart quotes become straight quotes, then get escaped
         assert escape_jql_value("\u201chello\u201d") == '"\\"hello\\""'
 
     def test_em_dash_replaced(self) -> None:
@@ -114,7 +322,6 @@ class TestEscapeJqlValue:
         assert escape_jql_value("feature-docs") == '"feature-docs"'
 
     def test_injection_attempt_with_quote(self) -> None:
-        # Attempting JQL injection via a label containing "
         malicious = 'bug" OR priority = "High'
         result = escape_jql_value(malicious)
         assert result == '"bug\\" OR priority = \\"High"'

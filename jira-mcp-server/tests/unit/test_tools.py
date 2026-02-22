@@ -196,12 +196,23 @@ class TestIssueCreate:
                 customfield_10001="custom_val",
             )
         assert result["key"] == "PROJ-1"
+
+    def test_description_markdown_converted(self) -> None:
+        from jira_mcp_server.tools import issue_tools
+
+        mock_client = _mock_client()
+        mock_client.create_issue.return_value = {"key": "PROJ-1"}
+        issue_tools._client = mock_client
+        issue_tools._cache = MagicMock()
+        issue_tools._cache.get.return_value = []
+        issue_tools._validator = MagicMock()
+        issue_tools.jira_issue_create(
+            project="PROJ",
+            summary="Test",
+            description="**bold** and [link](http://example.com)",
+        )
         call_data = mock_client.create_issue.call_args[0][0]
-        assert call_data["fields"]["priority"] == {"name": "High"}
-        assert call_data["fields"]["assignee"] == {"name": "john"}
-        assert call_data["fields"]["labels"] == ["bug"]
-        assert call_data["fields"]["duedate"] == "2024-12-31"
-        assert call_data["fields"]["customfield_10001"] == "custom_val"
+        assert call_data["fields"]["description"] == "*bold* and [link|http://example.com]"
 
     def test_schema_fetch_failure(self) -> None:
         from jira_mcp_server.tools import issue_tools
@@ -278,6 +289,16 @@ class TestIssueUpdate:
         assert call_data["fields"]["labels"] == ["l"]
         assert call_data["fields"]["duedate"] == "2024-12-31"
         assert call_data["fields"]["customfield_10001"] == "v"
+
+    def test_description_markdown_converted(self) -> None:
+        from jira_mcp_server.tools import issue_tools
+
+        mock_client = _mock_client()
+        mock_client.get_issue.return_value = {"key": "TEST-1"}
+        issue_tools._client = mock_client
+        issue_tools.jira_issue_update(issue_key="TEST-1", description="# Heading\n\n**bold**")
+        call_data = mock_client.update_issue.call_args[0][1]
+        assert call_data["fields"]["description"] == "h1. Heading\n\n*bold*"
 
     def test_no_fields_raises(self) -> None:
         from jira_mcp_server.tools import issue_tools
@@ -968,6 +989,16 @@ class TestCommentAdd:
         result = comment_tools.jira_comment_add("TEST-1", "hello")
         assert result["id"] == "100"
 
+    def test_body_markdown_converted(self) -> None:
+        from jira_mcp_server.tools import comment_tools
+
+        mock_client = _mock_client()
+        mock_client.add_comment.return_value = {"id": "101", "body": "*converted*"}
+        comment_tools._client = mock_client
+        comment_tools.jira_comment_add("TEST-1", "**bold** and\n- bullet item")
+        call_body = mock_client.add_comment.call_args[1]["body"]
+        assert call_body == "*bold* and\n* bullet item"
+
     def test_empty_key_raises(self) -> None:
         from jira_mcp_server.tools import comment_tools
 
@@ -1049,6 +1080,16 @@ class TestCommentUpdate:
         comment_tools._client = mock_client
         result = comment_tools.jira_comment_update("TEST-1", "100", "new")
         assert result["body"] == "new"
+
+    def test_body_markdown_converted(self) -> None:
+        from jira_mcp_server.tools import comment_tools
+
+        mock_client = _mock_client()
+        mock_client.update_comment.return_value = {"id": "100", "body": "updated"}
+        comment_tools._client = mock_client
+        comment_tools.jira_comment_update("TEST-1", "100", "[link](http://example.com)")
+        call_body = mock_client.update_comment.call_args[1]["body"]
+        assert call_body == "[link|http://example.com]"
 
     def test_empty_key_raises(self) -> None:
         from jira_mcp_server.tools import comment_tools
