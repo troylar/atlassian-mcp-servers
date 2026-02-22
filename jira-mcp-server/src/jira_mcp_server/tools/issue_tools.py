@@ -6,7 +6,7 @@ from jira_mcp_server.client import JiraClient
 from jira_mcp_server.config import JiraConfig
 from jira_mcp_server.models import FieldSchema, FieldType, FieldValidationError
 from jira_mcp_server.schema_cache import SchemaCache
-from jira_mcp_server.utils.text import sanitize_text
+from jira_mcp_server.utils.text import sanitize_long_text, sanitize_text
 from jira_mcp_server.validators import FieldValidator
 
 _client: Optional[JiraClient] = None
@@ -101,7 +101,7 @@ def jira_issue_create(
     }
 
     if description:
-        fields["description"] = sanitize_text(description)
+        fields["description"] = sanitize_long_text(description)
     if priority:
         fields["priority"] = {"name": priority}
     if assignee:
@@ -143,7 +143,7 @@ def jira_issue_update(
     if summary is not None:
         fields["summary"] = sanitize_text(summary)
     if description is not None:
-        fields["description"] = sanitize_text(description)
+        fields["description"] = sanitize_long_text(description)
     if priority is not None:
         fields["priority"] = {"name": priority}
     if assignee is not None:

@@ -3,7 +3,7 @@
 from typing import Any, Dict, Optional
 
 from jira_mcp_server.client import JiraClient
-from jira_mcp_server.utils.text import sanitize_text
+from jira_mcp_server.utils.text import sanitize_long_text
 
 _client: Optional[JiraClient] = None
 
@@ -21,7 +21,7 @@ def jira_comment_add(issue_key: str, body: str) -> Dict[str, Any]:
     if not body or not body.strip():
         raise ValueError("Comment body cannot be empty")
     try:
-        return _client.add_comment(issue_key=issue_key, body=sanitize_text(body))
+        return _client.add_comment(issue_key=issue_key, body=sanitize_long_text(body))
     except Exception as e:
         raise ValueError(f"Add comment failed: {str(e)}")
 
@@ -47,7 +47,7 @@ def jira_comment_update(issue_key: str, comment_id: str, body: str) -> Dict[str,
     if not body or not body.strip():
         raise ValueError("Comment body cannot be empty")
     try:
-        return _client.update_comment(issue_key=issue_key, comment_id=comment_id, body=sanitize_text(body))
+        return _client.update_comment(issue_key=issue_key, comment_id=comment_id, body=sanitize_long_text(body))
     except Exception as e:
         raise ValueError(f"Update comment failed: {str(e)}")
 
