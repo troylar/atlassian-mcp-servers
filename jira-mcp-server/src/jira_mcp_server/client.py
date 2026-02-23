@@ -1,12 +1,16 @@
 """Jira REST API client with dual auth support (PAT + Cloud)."""
 
 import base64
+import logging
+import time
 from typing import Any, Dict, List
 
 import httpx
 
 from jira_mcp_server.config import AuthType, JiraConfig
 from jira_mcp_server.validators import _safe_error_text, validate_file_path
+
+logger = logging.getLogger(__name__)
 
 
 class JiraClient:
@@ -113,8 +117,12 @@ class JiraClient:
     def _request(
         self, method: str, url: str, **kwargs: Any
     ) -> httpx.Response:
+        logger.debug("-> %s %s", method, url)
+        start = time.monotonic()
         with httpx.Client(timeout=self.timeout, verify=self.verify_ssl) as client:
             response = client.request(method, url, headers=self._get_headers(), **kwargs)
+            elapsed_ms = (time.monotonic() - start) * 1000
+            logger.debug("<- %s %s %s (%.0fms)", response.status_code, method, url, elapsed_ms)
             return response
 
     def health_check(self) -> Dict[str, Any]:
@@ -556,6 +564,8 @@ class JiraClient:
         import os
 
         actual_filename = filename or os.path.basename(safe_path)
+        logger.debug("-> POST %s (file: %s)", url, actual_filename)
+        start = time.monotonic()
         try:
             with httpx.Client(timeout=self.timeout, verify=self.verify_ssl) as client:
                 with open(safe_path, "rb") as f:
@@ -564,6 +574,8 @@ class JiraClient:
                         headers=headers,
                         files={"file": (actual_filename, f)},
                     )
+                    elapsed_ms = (time.monotonic() - start) * 1000
+                    logger.debug("<- %s POST %s (%.0fms)", response.status_code, url, elapsed_ms)
                     if response.status_code not in (200, 201):
                         self._handle_error(response)
                     return response.json()  # type: ignore[no-any-return]

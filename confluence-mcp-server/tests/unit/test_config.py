@@ -177,3 +177,61 @@ class TestConfluenceConfigDefaults:
         config = ConfluenceConfig()  # type: ignore[call-arg]
         assert config.url == "https://confluence.example.com"
         assert config.token == "test-token"
+
+
+class TestLogLevel:
+    def test_default_log_level(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("CONFLUENCE_MCP_URL", "https://confluence.example.com")
+        monkeypatch.setenv("CONFLUENCE_MCP_TOKEN", "test-token")
+        monkeypatch.delenv("CONFLUENCE_MCP_EMAIL", raising=False)
+        monkeypatch.delenv("CONFLUENCE_MCP_AUTH_TYPE", raising=False)
+        monkeypatch.delenv("CONFLUENCE_MCP_LOG_LEVEL", raising=False)
+        config = ConfluenceConfig()  # type: ignore[call-arg]
+        assert config.log_level == "WARNING"
+
+    def test_custom_log_level_debug(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("CONFLUENCE_MCP_URL", "https://confluence.example.com")
+        monkeypatch.setenv("CONFLUENCE_MCP_TOKEN", "test-token")
+        monkeypatch.setenv("CONFLUENCE_MCP_LOG_LEVEL", "DEBUG")
+        monkeypatch.delenv("CONFLUENCE_MCP_EMAIL", raising=False)
+        monkeypatch.delenv("CONFLUENCE_MCP_AUTH_TYPE", raising=False)
+        config = ConfluenceConfig()  # type: ignore[call-arg]
+        assert config.log_level == "DEBUG"
+
+    def test_custom_log_level_info(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("CONFLUENCE_MCP_URL", "https://confluence.example.com")
+        monkeypatch.setenv("CONFLUENCE_MCP_TOKEN", "test-token")
+        monkeypatch.setenv("CONFLUENCE_MCP_LOG_LEVEL", "INFO")
+        monkeypatch.delenv("CONFLUENCE_MCP_EMAIL", raising=False)
+        monkeypatch.delenv("CONFLUENCE_MCP_AUTH_TYPE", raising=False)
+        config = ConfluenceConfig()  # type: ignore[call-arg]
+        assert config.log_level == "INFO"
+
+    def test_custom_log_level_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("CONFLUENCE_MCP_URL", "https://confluence.example.com")
+        monkeypatch.setenv("CONFLUENCE_MCP_TOKEN", "test-token")
+        monkeypatch.setenv("CONFLUENCE_MCP_LOG_LEVEL", "ERROR")
+        monkeypatch.delenv("CONFLUENCE_MCP_EMAIL", raising=False)
+        monkeypatch.delenv("CONFLUENCE_MCP_AUTH_TYPE", raising=False)
+        config = ConfluenceConfig()  # type: ignore[call-arg]
+        assert config.log_level == "ERROR"
+
+    def test_case_insensitive(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("CONFLUENCE_MCP_URL", "https://confluence.example.com")
+        monkeypatch.setenv("CONFLUENCE_MCP_TOKEN", "test-token")
+        monkeypatch.setenv("CONFLUENCE_MCP_LOG_LEVEL", "debug")
+        monkeypatch.delenv("CONFLUENCE_MCP_EMAIL", raising=False)
+        monkeypatch.delenv("CONFLUENCE_MCP_AUTH_TYPE", raising=False)
+        config = ConfluenceConfig()  # type: ignore[call-arg]
+        assert config.log_level == "DEBUG"
+
+    def test_invalid_log_level_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("CONFLUENCE_MCP_URL", "https://confluence.example.com")
+        monkeypatch.setenv("CONFLUENCE_MCP_TOKEN", "test-token")
+        monkeypatch.setenv("CONFLUENCE_MCP_LOG_LEVEL", "VERBOSE")
+        monkeypatch.delenv("CONFLUENCE_MCP_EMAIL", raising=False)
+        monkeypatch.delenv("CONFLUENCE_MCP_AUTH_TYPE", raising=False)
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError, match="Invalid log_level"):
+            ConfluenceConfig()  # type: ignore[call-arg]

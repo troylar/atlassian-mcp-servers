@@ -40,6 +40,7 @@ class BitbucketConfig(BaseSettings):
         default=500, description="Max description chars in summary mode. 0=no limit", ge=0
     )
     include_links: bool = Field(default=False, description="Include self/web URLs in responses")
+    log_level: str = Field(default="WARNING", description="Log level: DEBUG, INFO, WARNING, or ERROR")
 
     model_config = SettingsConfigDict(
         env_prefix="BITBUCKET_MCP_",
@@ -51,6 +52,14 @@ class BitbucketConfig(BaseSettings):
     @classmethod
     def remove_trailing_slash(cls, v: str) -> str:
         return v.rstrip("/")
+
+    @field_validator("log_level")
+    @classmethod
+    def validate_log_level(cls, v: str) -> str:
+        normalized = v.upper()
+        if normalized not in ("DEBUG", "INFO", "WARNING", "ERROR"):
+            raise ValueError(f"Invalid log_level '{v}': must be DEBUG, INFO, WARNING, or ERROR")
+        return normalized
 
     @model_validator(mode="after")
     def resolve_auth_type(self) -> "BitbucketConfig":

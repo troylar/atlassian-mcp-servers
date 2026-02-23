@@ -177,3 +177,59 @@ class TestBitbucketConfigMissingRequired:
         monkeypatch.delenv("BITBUCKET_MCP_AUTH_TYPE", raising=False)
         with pytest.raises(ValidationError):
             BitbucketConfig()  # type: ignore[call-arg]
+
+
+class TestLogLevel:
+    def test_default_log_level(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("BITBUCKET_MCP_URL", "https://bitbucket.example.com")
+        monkeypatch.setenv("BITBUCKET_MCP_TOKEN", "test-token")
+        monkeypatch.delenv("BITBUCKET_MCP_EMAIL", raising=False)
+        monkeypatch.delenv("BITBUCKET_MCP_AUTH_TYPE", raising=False)
+        monkeypatch.delenv("BITBUCKET_MCP_LOG_LEVEL", raising=False)
+        config = BitbucketConfig()  # type: ignore[call-arg]
+        assert config.log_level == "WARNING"
+
+    def test_custom_log_level_debug(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("BITBUCKET_MCP_URL", "https://bitbucket.example.com")
+        monkeypatch.setenv("BITBUCKET_MCP_TOKEN", "test-token")
+        monkeypatch.setenv("BITBUCKET_MCP_LOG_LEVEL", "DEBUG")
+        monkeypatch.delenv("BITBUCKET_MCP_EMAIL", raising=False)
+        monkeypatch.delenv("BITBUCKET_MCP_AUTH_TYPE", raising=False)
+        config = BitbucketConfig()  # type: ignore[call-arg]
+        assert config.log_level == "DEBUG"
+
+    def test_custom_log_level_info(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("BITBUCKET_MCP_URL", "https://bitbucket.example.com")
+        monkeypatch.setenv("BITBUCKET_MCP_TOKEN", "test-token")
+        monkeypatch.setenv("BITBUCKET_MCP_LOG_LEVEL", "INFO")
+        monkeypatch.delenv("BITBUCKET_MCP_EMAIL", raising=False)
+        monkeypatch.delenv("BITBUCKET_MCP_AUTH_TYPE", raising=False)
+        config = BitbucketConfig()  # type: ignore[call-arg]
+        assert config.log_level == "INFO"
+
+    def test_custom_log_level_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("BITBUCKET_MCP_URL", "https://bitbucket.example.com")
+        monkeypatch.setenv("BITBUCKET_MCP_TOKEN", "test-token")
+        monkeypatch.setenv("BITBUCKET_MCP_LOG_LEVEL", "ERROR")
+        monkeypatch.delenv("BITBUCKET_MCP_EMAIL", raising=False)
+        monkeypatch.delenv("BITBUCKET_MCP_AUTH_TYPE", raising=False)
+        config = BitbucketConfig()  # type: ignore[call-arg]
+        assert config.log_level == "ERROR"
+
+    def test_case_insensitive(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("BITBUCKET_MCP_URL", "https://bitbucket.example.com")
+        monkeypatch.setenv("BITBUCKET_MCP_TOKEN", "test-token")
+        monkeypatch.setenv("BITBUCKET_MCP_LOG_LEVEL", "debug")
+        monkeypatch.delenv("BITBUCKET_MCP_EMAIL", raising=False)
+        monkeypatch.delenv("BITBUCKET_MCP_AUTH_TYPE", raising=False)
+        config = BitbucketConfig()  # type: ignore[call-arg]
+        assert config.log_level == "DEBUG"
+
+    def test_invalid_log_level_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("BITBUCKET_MCP_URL", "https://bitbucket.example.com")
+        monkeypatch.setenv("BITBUCKET_MCP_TOKEN", "test-token")
+        monkeypatch.setenv("BITBUCKET_MCP_LOG_LEVEL", "VERBOSE")
+        monkeypatch.delenv("BITBUCKET_MCP_EMAIL", raising=False)
+        monkeypatch.delenv("BITBUCKET_MCP_AUTH_TYPE", raising=False)
+        with pytest.raises(ValidationError, match="Invalid log_level"):
+            BitbucketConfig()  # type: ignore[call-arg]

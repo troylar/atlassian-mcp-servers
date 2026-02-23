@@ -1,5 +1,6 @@
 """FastMCP 3 server entry point for Bitbucket MCP Server."""
 
+import logging
 import sys
 from typing import Any, Dict, List, Optional
 
@@ -22,6 +23,8 @@ from bitbucket_mcp_server.formatters import (
     format_repos,
     format_tags,
 )
+
+logger = logging.getLogger(__name__)
 
 mcp = FastMCP("bitbucket-mcp-server")
 
@@ -788,21 +791,27 @@ def main() -> None:
     try:
         global _client, _config
         config = BitbucketConfig()  # type: ignore[call-arg]
+
+        logging.basicConfig(
+            level=getattr(logging, config.log_level),
+            format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+            stream=sys.stderr,
+        )
+
         _config = config
         _client = BitbucketClient(config)
 
         from importlib.metadata import version as pkg_version
 
         _version = pkg_version("atlassian-bitbucket-mcp")
-        print(f"Starting Bitbucket MCP Server v{_version}...", file=sys.stderr)
-        print(f"Bitbucket URL: {config.url}", file=sys.stderr)
-        print(f"Auth Type: {config.auth_type.value if config.auth_type else 'auto'}", file=sys.stderr)
-        print(f"Timeout: {config.timeout}s", file=sys.stderr)
-        print(f"SSL Verification: {'Enabled' if config.verify_ssl else 'DISABLED'}", file=sys.stderr)
+        logger.info("Starting Bitbucket MCP Server v%s...", _version)
+        logger.info("Bitbucket URL: %s", config.url)
+        logger.info("Auth Type: %s", config.auth_type.value if config.auth_type else "auto")
+        logger.info("Timeout: %ss", config.timeout)
+        logger.info("SSL Verification: %s", "Enabled" if config.verify_ssl else "DISABLED")
         if config.workspace:
-            print(f"Workspace: {config.workspace}", file=sys.stderr)
-        print(file=sys.stderr)
-        print("Server ready! Use MCP client to interact with Bitbucket.", file=sys.stderr)
+            logger.info("Workspace: %s", config.workspace)
+        logger.info("Server ready! Use MCP client to interact with Bitbucket.")
 
         mcp.run()
 
