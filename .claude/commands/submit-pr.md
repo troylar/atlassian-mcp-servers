@@ -73,6 +73,11 @@ cd <server> && pytest -v --tb=short 2>&1 | tail -80
 cd <server> && mypy src/ 2>&1 | tail -30
 ```
 
+**D — Semgrep SAST scan:**
+```bash
+semgrep --config .semgrep/ --config p/python --config p/owasp-top-ten <server>/src/ 2>&1 | tail -30
+```
+
 These are **blocking** — if any fail, abort.
 
 ### Step 4: Test Coverage for New Code
@@ -139,6 +144,7 @@ Verify all commits reference valid issues.
   Lint:           ✅ / ❌
   Tests:          ✅ / ❌ (per server)
   Type Check:     ✅ / ❌
+  Semgrep SAST:   ✅ / ❌
 
 🧪 Test Coverage
   Test Files:     ✅ / ❌
@@ -214,7 +220,7 @@ Run `/code-review` on the new PR. If issues found, offer to fix (max 2 rounds).
   🔗 PR:       #<N> — <title>
   🌐 URL:      <url>
   📎 Issues:   Closes #<N>
-  🧪 Checks:   ✅ lint, tests, types
+  🧪 Checks:   ✅ lint, tests, types, SAST
   🔒 Security: ✅
   🎯 Vision:   ✅
 
