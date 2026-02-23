@@ -144,6 +144,18 @@ from jira_mcp_server.tools.workflow_tools import (
 from jira_mcp_server.tools.workflow_tools import (
     jira_workflow_transition as _impl_workflow_transition,
 )
+from jira_mcp_server.tools.worklog_tools import (
+    initialize_worklog_tools,
+)
+from jira_mcp_server.tools.worklog_tools import (
+    jira_worklog_add as _impl_worklog_add,
+)
+from jira_mcp_server.tools.worklog_tools import (
+    jira_worklog_delete as _impl_worklog_delete,
+)
+from jira_mcp_server.tools.worklog_tools import (
+    jira_worklog_list as _impl_worklog_list,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -738,6 +750,50 @@ def jira_attachment_delete(attachment_id: str) -> Dict[str, Any]:
     return _impl_attachment_delete(attachment_id=attachment_id)  # pragma: no cover
 
 
+# --- Worklog Tools ---
+
+
+@mcp.tool()
+def jira_worklog_add(
+    issue_key: str,
+    time_spent: str,
+    comment: str | None = None,
+    started: str | None = None,
+) -> Dict[str, Any]:
+    """Add a worklog entry to an issue for time tracking.
+
+    Args:
+        issue_key: Issue key (e.g., "PROJ-123")
+        time_spent: Time spent in Jira duration format (e.g., "2h", "30m", "1d", "1h 30m")
+        comment: Optional worklog comment
+        started: Optional start time in ISO format (defaults to now)
+    """
+    return _impl_worklog_add(  # pragma: no cover
+        issue_key=issue_key, time_spent=time_spent, comment=comment, started=started
+    )
+
+
+@mcp.tool()
+def jira_worklog_list(issue_key: str) -> Dict[str, Any]:
+    """List all worklog entries for an issue.
+
+    Args:
+        issue_key: Issue key (e.g., "PROJ-123")
+    """
+    return _impl_worklog_list(issue_key=issue_key)  # pragma: no cover
+
+
+@mcp.tool()
+def jira_worklog_delete(issue_key: str, worklog_id: str) -> Dict[str, Any]:
+    """Delete a worklog entry from an issue.
+
+    Args:
+        issue_key: Issue key (e.g., "PROJ-123")
+        worklog_id: Worklog entry ID to delete
+    """
+    return _impl_worklog_delete(issue_key=issue_key, worklog_id=worklog_id)  # pragma: no cover
+
+
 # --- Priority & Status Tools ---
 
 
@@ -778,6 +834,7 @@ def main() -> None:
         initialize_sprint_tools(client, config)
         initialize_user_tools(client, config)
         initialize_attachment_tools(client)
+        initialize_worklog_tools(client, config)
 
         from importlib.metadata import version as pkg_version
 

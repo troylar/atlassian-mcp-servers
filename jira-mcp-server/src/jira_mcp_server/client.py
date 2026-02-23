@@ -603,6 +603,48 @@ class JiraClient:
         except httpx.TimeoutException:
             raise ValueError(f"Timeout deleting attachment {attachment_id}")
 
+    # Worklog operations
+
+    def add_worklog(
+        self,
+        issue_key: str,
+        time_spent: str,
+        comment: str | None = None,
+        started: str | None = None,
+    ) -> Dict[str, Any]:
+        url = f"{self.base_url}/rest/api/2/issue/{issue_key}/worklog"
+        data: Dict[str, Any] = {"timeSpent": time_spent}
+        if comment:
+            data["comment"] = comment
+        if started:
+            data["started"] = started
+        try:
+            response = self._request("POST", url, json=data)
+            if response.status_code not in (200, 201):
+                self._handle_error(response)
+            return response.json()  # type: ignore[no-any-return]
+        except httpx.TimeoutException:
+            raise ValueError(f"Timeout adding worklog to issue {issue_key}")
+
+    def list_worklogs(self, issue_key: str) -> Dict[str, Any]:
+        url = f"{self.base_url}/rest/api/2/issue/{issue_key}/worklog"
+        try:
+            response = self._request("GET", url)
+            if response.status_code != 200:
+                self._handle_error(response)
+            return response.json()  # type: ignore[no-any-return]
+        except httpx.TimeoutException:
+            raise ValueError(f"Timeout listing worklogs for issue {issue_key}")
+
+    def delete_worklog(self, issue_key: str, worklog_id: str) -> None:
+        url = f"{self.base_url}/rest/api/2/issue/{issue_key}/worklog/{worklog_id}"
+        try:
+            response = self._request("DELETE", url)
+            if response.status_code != 204:
+                self._handle_error(response)
+        except httpx.TimeoutException:
+            raise ValueError(f"Timeout deleting worklog {worklog_id} on issue {issue_key}")
+
     # Priority and status operations
 
     def list_priorities(self) -> List[Dict[str, Any]]:
