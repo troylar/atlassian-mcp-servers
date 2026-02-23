@@ -1473,6 +1473,123 @@ class TestSprintIssues:
             sprint_tools.jira_sprint_issues("1")
 
 
+class TestSprintAddIssues:
+    def test_not_initialized(self) -> None:
+        from jira_mcp_server.tools import sprint_tools
+
+        sprint_tools._client = None
+        with pytest.raises(RuntimeError, match="not initialized"):
+            sprint_tools.jira_sprint_add_issues("1", ["PROJ-1"])
+
+    def test_success(self) -> None:
+        from jira_mcp_server.tools import sprint_tools
+
+        mock_client = _mock_client()
+        mock_client.add_issues_to_sprint.return_value = {
+            "success": True, "sprint_id": "10", "issues_added": ["PROJ-1"]
+        }
+        sprint_tools._client = mock_client
+        result = sprint_tools.jira_sprint_add_issues("10", ["PROJ-1"])
+        assert result["success"] is True
+        mock_client.add_issues_to_sprint.assert_called_once_with("10", ["PROJ-1"])
+
+    def test_multiple_issues(self) -> None:
+        from jira_mcp_server.tools import sprint_tools
+
+        mock_client = _mock_client()
+        mock_client.add_issues_to_sprint.return_value = {
+            "success": True, "sprint_id": "10", "issues_added": ["PROJ-1", "PROJ-2"]
+        }
+        sprint_tools._client = mock_client
+        result = sprint_tools.jira_sprint_add_issues("10", ["PROJ-1", "PROJ-2"])
+        assert result["issues_added"] == ["PROJ-1", "PROJ-2"]
+
+    def test_empty_issue_keys_raises(self) -> None:
+        from jira_mcp_server.tools import sprint_tools
+
+        sprint_tools._client = _mock_client()
+        with pytest.raises(ValueError, match="issue_keys must not be empty"):
+            sprint_tools.jira_sprint_add_issues("10", [])
+
+    def test_invalid_sprint_id_raises(self) -> None:
+        from jira_mcp_server.tools import sprint_tools
+
+        sprint_tools._client = _mock_client()
+        with pytest.raises(ValueError, match="must be a numeric string"):
+            sprint_tools.jira_sprint_add_issues("abc", ["PROJ-1"])
+
+    def test_invalid_issue_key_raises(self) -> None:
+        from jira_mcp_server.tools import sprint_tools
+
+        sprint_tools._client = _mock_client()
+        with pytest.raises(ValueError, match="must match format"):
+            sprint_tools.jira_sprint_add_issues("10", ["bad-key"])
+
+    def test_client_failure(self) -> None:
+        from jira_mcp_server.tools import sprint_tools
+
+        mock_client = _mock_client()
+        mock_client.add_issues_to_sprint.side_effect = ValueError("error")
+        sprint_tools._client = mock_client
+        with pytest.raises(ValueError, match="Add issues to sprint failed"):
+            sprint_tools.jira_sprint_add_issues("10", ["PROJ-1"])
+
+
+class TestSprintRemoveIssues:
+    def test_not_initialized(self) -> None:
+        from jira_mcp_server.tools import sprint_tools
+
+        sprint_tools._client = None
+        with pytest.raises(RuntimeError, match="not initialized"):
+            sprint_tools.jira_sprint_remove_issues(["PROJ-1"])
+
+    def test_success(self) -> None:
+        from jira_mcp_server.tools import sprint_tools
+
+        mock_client = _mock_client()
+        mock_client.remove_issues_from_sprint.return_value = {
+            "success": True, "issues_moved_to_backlog": ["PROJ-1"]
+        }
+        sprint_tools._client = mock_client
+        result = sprint_tools.jira_sprint_remove_issues(["PROJ-1"])
+        assert result["success"] is True
+        mock_client.remove_issues_from_sprint.assert_called_once_with(["PROJ-1"])
+
+    def test_multiple_issues(self) -> None:
+        from jira_mcp_server.tools import sprint_tools
+
+        mock_client = _mock_client()
+        mock_client.remove_issues_from_sprint.return_value = {
+            "success": True, "issues_moved_to_backlog": ["PROJ-1", "PROJ-2"]
+        }
+        sprint_tools._client = mock_client
+        result = sprint_tools.jira_sprint_remove_issues(["PROJ-1", "PROJ-2"])
+        assert result["issues_moved_to_backlog"] == ["PROJ-1", "PROJ-2"]
+
+    def test_empty_issue_keys_raises(self) -> None:
+        from jira_mcp_server.tools import sprint_tools
+
+        sprint_tools._client = _mock_client()
+        with pytest.raises(ValueError, match="issue_keys must not be empty"):
+            sprint_tools.jira_sprint_remove_issues([])
+
+    def test_invalid_issue_key_raises(self) -> None:
+        from jira_mcp_server.tools import sprint_tools
+
+        sprint_tools._client = _mock_client()
+        with pytest.raises(ValueError, match="must match format"):
+            sprint_tools.jira_sprint_remove_issues(["bad-key"])
+
+    def test_client_failure(self) -> None:
+        from jira_mcp_server.tools import sprint_tools
+
+        mock_client = _mock_client()
+        mock_client.remove_issues_from_sprint.side_effect = ValueError("error")
+        sprint_tools._client = mock_client
+        with pytest.raises(ValueError, match="Remove issues from sprint failed"):
+            sprint_tools.jira_sprint_remove_issues(["PROJ-1"])
+
+
 class TestSprintInitialize:
     def test_initialize(self) -> None:
         from jira_mcp_server.tools import sprint_tools

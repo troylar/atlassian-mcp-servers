@@ -809,6 +809,71 @@ class TestSprintOperations:
             with pytest.raises(ValueError, match="Timeout getting issues for sprint"):
                 client.get_sprint_issues("1")
 
+    def test_add_issues_to_sprint_success(self) -> None:
+        client = JiraClient(_make_config())
+        mock_resp = _mock_response(204)
+        with patch.object(client, "_request", return_value=mock_resp) as mock_req:
+            result = client.add_issues_to_sprint("10", ["PROJ-1", "PROJ-2"])
+        assert result["success"] is True
+        assert result["sprint_id"] == "10"
+        assert result["issues_added"] == ["PROJ-1", "PROJ-2"]
+        call_args = mock_req.call_args
+        assert call_args[0] == ("POST", "https://jira.example.com/rest/agile/1.0/sprint/10/issue")
+        assert call_args[1]["json"] == {"issues": ["PROJ-1", "PROJ-2"]}
+
+    def test_add_issues_to_sprint_200(self) -> None:
+        client = JiraClient(_make_config())
+        mock_resp = _mock_response(200)
+        with patch.object(client, "_request", return_value=mock_resp):
+            result = client.add_issues_to_sprint("10", ["PROJ-1"])
+        assert result["success"] is True
+
+    def test_add_issues_to_sprint_error(self) -> None:
+        client = JiraClient(_make_config())
+        mock_resp = _mock_response(400, json_data={"errorMessages": ["Invalid issue"]})
+        mock_resp.request.url = "https://jira.example.com/rest/agile/1.0/sprint/10/issue"
+        with patch.object(client, "_request", return_value=mock_resp):
+            with pytest.raises(ValueError):
+                client.add_issues_to_sprint("10", ["BAD-1"])
+
+    def test_add_issues_to_sprint_timeout(self) -> None:
+        client = JiraClient(_make_config())
+        with patch.object(client, "_request", side_effect=httpx.TimeoutException("timeout")):
+            with pytest.raises(ValueError, match="Timeout adding issues to sprint"):
+                client.add_issues_to_sprint("10", ["PROJ-1"])
+
+    def test_remove_issues_from_sprint_success(self) -> None:
+        client = JiraClient(_make_config())
+        mock_resp = _mock_response(204)
+        with patch.object(client, "_request", return_value=mock_resp) as mock_req:
+            result = client.remove_issues_from_sprint(["PROJ-1", "PROJ-3"])
+        assert result["success"] is True
+        assert result["issues_moved_to_backlog"] == ["PROJ-1", "PROJ-3"]
+        call_args = mock_req.call_args
+        assert call_args[0] == ("POST", "https://jira.example.com/rest/agile/1.0/backlog/issue")
+        assert call_args[1]["json"] == {"issues": ["PROJ-1", "PROJ-3"]}
+
+    def test_remove_issues_from_sprint_200(self) -> None:
+        client = JiraClient(_make_config())
+        mock_resp = _mock_response(200)
+        with patch.object(client, "_request", return_value=mock_resp):
+            result = client.remove_issues_from_sprint(["PROJ-1"])
+        assert result["success"] is True
+
+    def test_remove_issues_from_sprint_error(self) -> None:
+        client = JiraClient(_make_config())
+        mock_resp = _mock_response(404)
+        mock_resp.request.url = "https://jira.example.com/rest/agile/1.0/backlog/issue"
+        with patch.object(client, "_request", return_value=mock_resp):
+            with pytest.raises(ValueError, match="Resource not found"):
+                client.remove_issues_from_sprint(["BAD-1"])
+
+    def test_remove_issues_from_sprint_timeout(self) -> None:
+        client = JiraClient(_make_config())
+        with patch.object(client, "_request", side_effect=httpx.TimeoutException("timeout")):
+            with pytest.raises(ValueError, match="Timeout removing issues from sprint"):
+                client.remove_issues_from_sprint(["PROJ-1"])
+
 
 class TestUserOperations:
     def test_search_users_success(self) -> None:

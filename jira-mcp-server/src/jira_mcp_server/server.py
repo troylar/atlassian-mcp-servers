@@ -56,9 +56,11 @@ from jira_mcp_server.tools.search_tools import (
 )
 from jira_mcp_server.tools.sprint_tools import (
     initialize_sprint_tools,
+    jira_sprint_add_issues,
     jira_sprint_get,
     jira_sprint_issues,
     jira_sprint_list,
+    jira_sprint_remove_issues,
 )
 from jira_mcp_server.tools.user_tools import (
     initialize_user_tools,
@@ -545,6 +547,27 @@ def jira_sprint_issues_tool(sprint_id: str, max_results: int = 50, start_at: int
     return jira_sprint_issues(  # pragma: no cover
         sprint_id=sprint_id, max_results=max_results, start_at=start_at
     )
+
+
+@mcp.tool()
+def jira_sprint_add_issues_tool(sprint_id: str, issue_keys: List[str]) -> Dict[str, Any]:
+    """Add issues to a sprint. Moves issues from backlog or another sprint into the specified sprint.
+
+    Args:
+        sprint_id: Sprint ID (numeric)
+        issue_keys: List of issue keys to add (e.g., ["PROJ-1", "PROJ-2"])
+    """
+    return jira_sprint_add_issues(sprint_id=sprint_id, issue_keys=issue_keys)  # pragma: no cover
+
+
+@mcp.tool()
+def jira_sprint_remove_issues_tool(issue_keys: List[str]) -> Dict[str, Any]:
+    """Remove issues from their current sprint and move them back to the backlog.
+
+    Args:
+        issue_keys: List of issue keys to move to backlog (e.g., ["PROJ-1", "PROJ-2"])
+    """
+    return jira_sprint_remove_issues(issue_keys=issue_keys)  # pragma: no cover
 
 
 # --- User Tools ---
