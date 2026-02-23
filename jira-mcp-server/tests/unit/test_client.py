@@ -1040,6 +1040,211 @@ class TestAttachmentOperations:
                 client.delete_attachment("10000")
 
 
+class TestDownloadAttachment:
+    def test_download_text_file(self) -> None:
+        client = JiraClient(_make_config())
+        metadata = {
+            "id": "10000",
+            "filename": "readme.txt",
+            "mimeType": "text/plain",
+            "size": 13,
+            "content": "https://jira.example.com/secure/attachment/10000/readme.txt",
+        }
+        mock_meta_resp = _mock_response(200, metadata)
+        mock_download_resp = MagicMock(spec=httpx.Response)
+        mock_download_resp.status_code = 200
+        mock_download_resp.content = b"Hello, World!"
+        with patch.object(client, "_request", return_value=mock_meta_resp):
+            with patch("httpx.Client") as mock_client_cls:
+                mock_ctx = MagicMock()
+                mock_client_cls.return_value.__enter__ = MagicMock(return_value=mock_ctx)
+                mock_client_cls.return_value.__exit__ = MagicMock(return_value=False)
+                mock_ctx.get.return_value = mock_download_resp
+                result = client.download_attachment("10000")
+        assert result["content"] == "Hello, World!"
+        assert result["encoding"] == "text"
+        assert result["filename"] == "readme.txt"
+        assert result["size"] == 13
+        assert result["mime_type"] == "text/plain"
+
+    def test_download_binary_file(self) -> None:
+        client = JiraClient(_make_config())
+        metadata = {
+            "id": "10001",
+            "filename": "image.png",
+            "mimeType": "image/png",
+            "size": 4,
+            "content": "https://jira.example.com/secure/attachment/10001/image.png",
+        }
+        mock_meta_resp = _mock_response(200, metadata)
+        mock_download_resp = MagicMock(spec=httpx.Response)
+        mock_download_resp.status_code = 200
+        mock_download_resp.content = b"\x89PNG"
+        with patch.object(client, "_request", return_value=mock_meta_resp):
+            with patch("httpx.Client") as mock_client_cls:
+                mock_ctx = MagicMock()
+                mock_client_cls.return_value.__enter__ = MagicMock(return_value=mock_ctx)
+                mock_client_cls.return_value.__exit__ = MagicMock(return_value=False)
+                mock_ctx.get.return_value = mock_download_resp
+                result = client.download_attachment("10001")
+        import base64
+
+        assert result["content"] == base64.b64encode(b"\x89PNG").decode("ascii")
+        assert result["encoding"] == "base64"
+        assert result["filename"] == "image.png"
+        assert result["mime_type"] == "image/png"
+
+    def test_download_json_file_is_text(self) -> None:
+        client = JiraClient(_make_config())
+        metadata = {
+            "id": "10002",
+            "filename": "data.json",
+            "mimeType": "application/json",
+            "size": 2,
+            "content": "https://jira.example.com/secure/attachment/10002/data.json",
+        }
+        mock_meta_resp = _mock_response(200, metadata)
+        mock_download_resp = MagicMock(spec=httpx.Response)
+        mock_download_resp.status_code = 200
+        mock_download_resp.content = b"{}"
+        with patch.object(client, "_request", return_value=mock_meta_resp):
+            with patch("httpx.Client") as mock_client_cls:
+                mock_ctx = MagicMock()
+                mock_client_cls.return_value.__enter__ = MagicMock(return_value=mock_ctx)
+                mock_client_cls.return_value.__exit__ = MagicMock(return_value=False)
+                mock_ctx.get.return_value = mock_download_resp
+                result = client.download_attachment("10002")
+        assert result["encoding"] == "text"
+
+    def test_download_no_content_url(self) -> None:
+        client = JiraClient(_make_config())
+        metadata = {"id": "10000", "filename": "test.txt", "mimeType": "text/plain", "size": 5}
+        mock_meta_resp = _mock_response(200, metadata)
+        with patch.object(client, "_request", return_value=mock_meta_resp):
+            with pytest.raises(ValueError, match="No download URL found"):
+                client.download_attachment("10000")
+
+    def test_download_size_exceeds_limit_from_metadata(self) -> None:
+        client = JiraClient(_make_config())
+        metadata = {
+            "id": "10000",
+            "filename": "huge.bin",
+            "mimeType": "application/octet-stream",
+            "size": 20_000_000,
+            "content": "https://jira.example.com/secure/attachment/10000/huge.bin",
+        }
+        mock_meta_resp = _mock_response(200, metadata)
+        with patch.object(client, "_request", return_value=mock_meta_resp):
+            with pytest.raises(ValueError, match="exceeds.*byte limit"):
+                client.download_attachment("10000")
+
+    def test_download_size_exceeds_limit_from_actual(self) -> None:
+        client = JiraClient(_make_config())
+        metadata = {
+            "id": "10000",
+            "filename": "sneaky.bin",
+            "mimeType": "application/octet-stream",
+            "size": 100,
+            "content": "https://jira.example.com/secure/attachment/10000/sneaky.bin",
+        }
+        mock_meta_resp = _mock_response(200, metadata)
+        mock_download_resp = MagicMock(spec=httpx.Response)
+        mock_download_resp.status_code = 200
+        mock_download_resp.content = b"x" * 200
+        with patch.object(client, "_request", return_value=mock_meta_resp):
+            with patch("httpx.Client") as mock_client_cls:
+                mock_ctx = MagicMock()
+                mock_client_cls.return_value.__enter__ = MagicMock(return_value=mock_ctx)
+                mock_client_cls.return_value.__exit__ = MagicMock(return_value=False)
+                mock_ctx.get.return_value = mock_download_resp
+                with pytest.raises(ValueError, match="exceeds.*byte limit"):
+                    client.download_attachment("10000", max_size=150)
+
+    def test_download_custom_max_size(self) -> None:
+        client = JiraClient(_make_config())
+        metadata = {
+            "id": "10000",
+            "filename": "small.txt",
+            "mimeType": "text/plain",
+            "size": 5,
+            "content": "https://jira.example.com/secure/attachment/10000/small.txt",
+        }
+        mock_meta_resp = _mock_response(200, metadata)
+        mock_download_resp = MagicMock(spec=httpx.Response)
+        mock_download_resp.status_code = 200
+        mock_download_resp.content = b"hello"
+        with patch.object(client, "_request", return_value=mock_meta_resp):
+            with patch("httpx.Client") as mock_client_cls:
+                mock_ctx = MagicMock()
+                mock_client_cls.return_value.__enter__ = MagicMock(return_value=mock_ctx)
+                mock_client_cls.return_value.__exit__ = MagicMock(return_value=False)
+                mock_ctx.get.return_value = mock_download_resp
+                result = client.download_attachment("10000", max_size=1024)
+        assert result["size"] == 5
+
+    def test_download_error_response(self) -> None:
+        client = JiraClient(_make_config())
+        metadata = {
+            "id": "10000",
+            "filename": "test.txt",
+            "mimeType": "text/plain",
+            "size": 5,
+            "content": "https://jira.example.com/secure/attachment/10000/test.txt",
+        }
+        mock_meta_resp = _mock_response(200, metadata)
+        mock_download_resp = _mock_response(403)
+        mock_download_resp.request.url = "https://jira.example.com/secure/attachment/10000/test.txt"
+        with patch.object(client, "_request", return_value=mock_meta_resp):
+            with patch("httpx.Client") as mock_client_cls:
+                mock_ctx = MagicMock()
+                mock_client_cls.return_value.__enter__ = MagicMock(return_value=mock_ctx)
+                mock_client_cls.return_value.__exit__ = MagicMock(return_value=False)
+                mock_ctx.get.return_value = mock_download_resp
+                with pytest.raises(ValueError, match="Permission denied"):
+                    client.download_attachment("10000")
+
+    def test_download_timeout(self) -> None:
+        client = JiraClient(_make_config())
+        metadata = {
+            "id": "10000",
+            "filename": "test.txt",
+            "mimeType": "text/plain",
+            "size": 5,
+            "content": "https://jira.example.com/secure/attachment/10000/test.txt",
+        }
+        mock_meta_resp = _mock_response(200, metadata)
+        with patch.object(client, "_request", return_value=mock_meta_resp):
+            with patch("httpx.Client") as mock_client_cls:
+                mock_ctx = MagicMock()
+                mock_client_cls.return_value.__enter__ = MagicMock(return_value=mock_ctx)
+                mock_client_cls.return_value.__exit__ = MagicMock(return_value=False)
+                mock_ctx.get.side_effect = httpx.TimeoutException("timeout")
+                with pytest.raises(ValueError, match="Timeout downloading attachment"):
+                    client.download_attachment("10000")
+
+    def test_download_string_size_in_metadata(self) -> None:
+        client = JiraClient(_make_config())
+        metadata = {
+            "id": "10000",
+            "filename": "test.txt",
+            "mimeType": "text/plain",
+            "size": "5",
+            "content": "https://jira.example.com/secure/attachment/10000/test.txt",
+        }
+        mock_meta_resp = _mock_response(200, metadata)
+        mock_download_resp = MagicMock(spec=httpx.Response)
+        mock_download_resp.status_code = 200
+        mock_download_resp.content = b"hello"
+        with patch.object(client, "_request", return_value=mock_meta_resp):
+            with patch("httpx.Client") as mock_client_cls:
+                mock_ctx = MagicMock()
+                mock_client_cls.return_value.__enter__ = MagicMock(return_value=mock_ctx)
+                mock_client_cls.return_value.__exit__ = MagicMock(return_value=False)
+                mock_ctx.get.return_value = mock_download_resp
+                result = client.download_attachment("10000")
+        assert result["size"] == 5
+
+
 class TestWorklogOperations:
     def test_add_worklog_success(self) -> None:
         client = JiraClient(_make_config())

@@ -18,6 +18,9 @@ from jira_mcp_server.tools.attachment_tools import (
     jira_attachment_delete as _impl_attachment_delete,
 )
 from jira_mcp_server.tools.attachment_tools import (
+    jira_attachment_download as _impl_attachment_download,
+)
+from jira_mcp_server.tools.attachment_tools import (
     jira_attachment_get as _impl_attachment_get,
 )
 from jira_mcp_server.tools.board_tools import (
@@ -748,6 +751,20 @@ def jira_attachment_delete(attachment_id: str) -> Dict[str, Any]:
         attachment_id: Attachment ID
     """
     return _impl_attachment_delete(attachment_id=attachment_id)  # pragma: no cover
+
+
+@mcp.tool()
+def jira_attachment_download(attachment_id: str, max_size: int | None = None) -> Dict[str, Any]:
+    """Download attachment content.
+
+    Returns text content directly for text files, or base64-encoded content for binary files.
+    Default max size is 10MB.
+
+    Args:
+        attachment_id: Attachment ID
+        max_size: Optional max size in bytes (default 10MB)
+    """
+    return _impl_attachment_download(attachment_id=attachment_id, max_size=max_size)  # pragma: no cover
 
 
 # --- Worklog Tools ---

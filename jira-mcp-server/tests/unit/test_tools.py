@@ -1853,6 +1853,63 @@ class TestAttachmentDelete:
             attachment_tools.jira_attachment_delete("100")
 
 
+class TestAttachmentDownload:
+    def test_not_initialized(self) -> None:
+        from jira_mcp_server.tools import attachment_tools
+
+        attachment_tools._client = None
+        with pytest.raises(RuntimeError, match="not initialized"):
+            attachment_tools.jira_attachment_download("100")
+
+    def test_success(self) -> None:
+        from jira_mcp_server.tools import attachment_tools
+
+        mock_client = _mock_client()
+        mock_client.download_attachment.return_value = {
+            "content": "hello",
+            "encoding": "text",
+            "filename": "test.txt",
+            "size": 5,
+            "mime_type": "text/plain",
+        }
+        attachment_tools._client = mock_client
+        result = attachment_tools.jira_attachment_download("100")
+        assert result["encoding"] == "text"
+        mock_client.download_attachment.assert_called_once_with("100")
+
+    def test_with_max_size(self) -> None:
+        from jira_mcp_server.tools import attachment_tools
+
+        mock_client = _mock_client()
+        mock_client.download_attachment.return_value = {
+            "content": "hello",
+            "encoding": "text",
+            "filename": "test.txt",
+            "size": 5,
+            "mime_type": "text/plain",
+        }
+        attachment_tools._client = mock_client
+        result = attachment_tools.jira_attachment_download("100", max_size=1024)
+        assert result["encoding"] == "text"
+        mock_client.download_attachment.assert_called_once_with("100", max_size=1024)
+
+    def test_empty_id_raises(self) -> None:
+        from jira_mcp_server.tools import attachment_tools
+
+        attachment_tools._client = _mock_client()
+        with pytest.raises(ValueError, match="Attachment ID cannot be empty"):
+            attachment_tools.jira_attachment_download("")
+
+    def test_client_failure(self) -> None:
+        from jira_mcp_server.tools import attachment_tools
+
+        mock_client = _mock_client()
+        mock_client.download_attachment.side_effect = ValueError("too big")
+        attachment_tools._client = mock_client
+        with pytest.raises(ValueError, match="Download attachment failed"):
+            attachment_tools.jira_attachment_download("100")
+
+
 class TestAttachmentInitialize:
     def test_initialize(self) -> None:
         from jira_mcp_server.tools import attachment_tools

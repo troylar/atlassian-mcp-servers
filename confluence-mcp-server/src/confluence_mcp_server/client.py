@@ -452,6 +452,59 @@ class ConfluenceClient:
         except httpx.TimeoutException:
             raise ValueError(f"Timeout deleting attachment {attachment_id}")
 
+    def download_attachment(self, attachment_id: str, max_size: int = 10 * 1024 * 1024) -> Dict[str, Any]:
+        metadata = self.get_attachment(attachment_id)
+        links = metadata.get("_links", {})
+        download_path = links.get("download")
+        if not download_path:
+            raise ValueError(f"No download URL found for attachment {attachment_id}")
+        title = metadata.get("title", "unknown")
+        extensions = metadata.get("extensions", {})
+        mime_type = extensions.get("mediaType", "application/octet-stream")
+        size = extensions.get("fileSize", 0)
+        if isinstance(size, str):
+            size = int(size)
+        if size > max_size:
+            raise ValueError(
+                f"Attachment {title} is {size} bytes, exceeds {max_size} byte limit"
+            )
+        download_url = f"{self.base_url}{download_path}"
+        headers = self._get_headers()
+        headers.pop("Content-Type", None)
+        logger.debug("-> GET %s (download)", download_url)
+        start = time.monotonic()
+        try:
+            with httpx.Client(timeout=self.timeout, verify=self.verify_ssl) as client:
+                response = client.get(download_url, headers=headers)
+                elapsed_ms = (time.monotonic() - start) * 1000
+                logger.debug("<- %s GET %s (%.0fms)", response.status_code, download_url, elapsed_ms)
+                if response.status_code != 200:
+                    self._handle_error(response)
+                actual_size = len(response.content)
+                if actual_size > max_size:
+                    raise ValueError(
+                        f"Attachment {title} is {actual_size} bytes, exceeds {max_size} byte limit"
+                    )
+                is_text = mime_type.startswith("text/") or mime_type in (
+                    "application/json", "application/xml", "application/javascript",
+                    "application/x-yaml", "application/yaml",
+                )
+                if is_text:
+                    content = response.content.decode("utf-8", errors="replace")
+                    encoding = "text"
+                else:
+                    content = base64.b64encode(response.content).decode("ascii")
+                    encoding = "base64"
+                return {
+                    "content": content,
+                    "encoding": encoding,
+                    "filename": title,
+                    "size": actual_size,
+                    "mime_type": mime_type,
+                }
+        except httpx.TimeoutException:
+            raise ValueError(f"Timeout downloading attachment {attachment_id}")
+
     # Label operations
 
     def add_label(self, page_id: str, label: str) -> Dict[str, Any]:
