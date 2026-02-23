@@ -4,19 +4,26 @@ from typing import Any, Dict, List, Optional
 
 from jira_mcp_server.client import JiraClient
 from jira_mcp_server.config import JiraConfig
+from jira_mcp_server.formatters import (
+    _get_summary_api_fields,
+    _resolve_detail,
+    format_issue,
+)
 from jira_mcp_server.models import FieldSchema, FieldType, FieldValidationError
 from jira_mcp_server.schema_cache import SchemaCache
 from jira_mcp_server.utils.text import sanitize_long_text, sanitize_text, sanitize_value
 from jira_mcp_server.validators import FieldValidator
 
 _client: Optional[JiraClient] = None
+_config: Optional[JiraConfig] = None
 _cache: Optional[SchemaCache] = None
 _validator: Optional[FieldValidator] = None
 
 
 def initialize_issue_tools(config: JiraConfig) -> None:
-    global _client, _cache, _validator
+    global _client, _config, _cache, _validator
     _client = JiraClient(config)
+    _config = config
     _cache = SchemaCache(ttl_seconds=config.cache_ttl)
     _validator = FieldValidator()
 
@@ -167,11 +174,16 @@ def jira_issue_update(
         raise ValueError(f"Failed to update issue: {str(e)}")
 
 
-def jira_issue_get(issue_key: str) -> Dict[str, Any]:
+def jira_issue_get(issue_key: str, detail: Optional[str] = None) -> Dict[str, Any]:
     if not _client:
         raise RuntimeError("Issue tools not initialized")
+    resolved = _resolve_detail(detail, _config)
     try:
-        return _client.get_issue(issue_key)
+        fields_param = _get_summary_api_fields(_config) if resolved == "summary" else None
+        raw = _client.get_issue(issue_key, fields=fields_param)
+        if resolved == "summary":
+            return format_issue(raw, _config)
+        return raw
     except Exception as e:
         raise ValueError(f"Failed to get issue: {str(e)}")
 

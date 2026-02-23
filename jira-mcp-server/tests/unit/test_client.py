@@ -1252,3 +1252,37 @@ class TestHandleError:
         resp = _mock_response(500, text="Internal error")
         with pytest.raises(ValueError, match="Jira API error \\(500\\)"):
             client._handle_error(resp)
+
+
+class TestFieldsParameter:
+    def test_get_issue_with_fields(self) -> None:
+        client = JiraClient(_make_config())
+        mock_resp = _mock_response(200, {"key": "TEST-1", "fields": {}})
+        with patch.object(client, "_request", return_value=mock_resp) as mock_req:
+            client.get_issue("TEST-1", fields="summary,status")
+        call_kwargs = mock_req.call_args[1]
+        assert call_kwargs["params"]["fields"] == "summary,status"
+
+    def test_get_issue_without_fields(self) -> None:
+        client = JiraClient(_make_config())
+        mock_resp = _mock_response(200, {"key": "TEST-1", "fields": {}})
+        with patch.object(client, "_request", return_value=mock_resp) as mock_req:
+            client.get_issue("TEST-1")
+        call_kwargs = mock_req.call_args[1]
+        assert call_kwargs["params"] == {}
+
+    def test_search_issues_with_fields(self) -> None:
+        client = JiraClient(_make_config())
+        mock_resp = _mock_response(200, {"issues": [], "total": 0})
+        with patch.object(client, "_request", return_value=mock_resp) as mock_req:
+            client.search_issues("project = TEST", fields="summary,status")
+        call_kwargs = mock_req.call_args[1]
+        assert call_kwargs["json"]["fields"] == ["summary", "status"]
+
+    def test_get_sprint_issues_with_fields(self) -> None:
+        client = JiraClient(_make_config())
+        mock_resp = _mock_response(200, {"issues": [], "total": 0})
+        with patch.object(client, "_request", return_value=mock_resp) as mock_req:
+            client.get_sprint_issues("42", fields="summary,status")
+        call_kwargs = mock_req.call_args[1]
+        assert call_kwargs["params"]["fields"] == "summary,status"

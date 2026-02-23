@@ -137,10 +137,13 @@ class JiraClient:
         except httpx.NetworkError as e:
             raise ValueError(f"Network error connecting to Jira: {str(e)}")
 
-    def get_issue(self, issue_key: str) -> Dict[str, Any]:
+    def get_issue(self, issue_key: str, fields: str | None = None) -> Dict[str, Any]:
         url = f"{self.base_url}/rest/api/2/issue/{issue_key}"
+        params: Dict[str, Any] = {}
+        if fields:
+            params["fields"] = fields
         try:
-            response = self._request("GET", url)
+            response = self._request("GET", url, params=params)
             if response.status_code != 200:
                 if response.status_code == 404:
                     raise ValueError(f"Issue {issue_key} not found.")
@@ -233,9 +236,13 @@ class JiraClient:
         except httpx.TimeoutException:
             raise ValueError(f"Timeout getting schema for {project_key}/{issue_type}")
 
-    def search_issues(self, jql: str, max_results: int = 100, start_at: int = 0) -> Dict[str, Any]:
+    def search_issues(
+        self, jql: str, max_results: int = 100, start_at: int = 0, fields: str | None = None
+    ) -> Dict[str, Any]:
         url = f"{self.base_url}/rest/api/2/search"
-        data = {"jql": jql, "maxResults": max_results, "startAt": start_at}
+        data: Dict[str, Any] = {"jql": jql, "maxResults": max_results, "startAt": start_at}
+        if fields:
+            data["fields"] = fields.split(",")
         try:
             response = self._request("POST", url, json=data)
             if response.status_code != 200:
@@ -467,9 +474,13 @@ class JiraClient:
         except httpx.TimeoutException:
             raise ValueError(f"Timeout getting sprint {sprint_id}")
 
-    def get_sprint_issues(self, sprint_id: str, max_results: int = 50, start_at: int = 0) -> Dict[str, Any]:
+    def get_sprint_issues(
+        self, sprint_id: str, max_results: int = 50, start_at: int = 0, fields: str | None = None
+    ) -> Dict[str, Any]:
         url = f"{self.base_url}/rest/agile/1.0/sprint/{sprint_id}/issue"
-        params = {"maxResults": max_results, "startAt": start_at}
+        params: Dict[str, Any] = {"maxResults": max_results, "startAt": start_at}
+        if fields:
+            params["fields"] = fields
         try:
             response = self._request("GET", url, params=params)
             if response.status_code != 200:

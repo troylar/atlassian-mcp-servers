@@ -186,13 +186,14 @@ def jira_issue_update_tool(
 
 
 @mcp.tool()
-def jira_issue_get_tool(issue_key: str) -> Dict[str, Any]:
-    """Retrieve full details of a single Jira issue including all custom fields.
+def jira_issue_get_tool(issue_key: str, detail: str | None = None) -> Dict[str, Any]:
+    """Retrieve a Jira issue. Returns summary by default; use detail='full' for all fields.
 
     Args:
         issue_key: Issue key (e.g., "PROJ-123")
+        detail: Response detail level: 'summary' (default) or 'full'
     """
-    return jira_issue_get(issue_key=issue_key)  # pragma: no cover
+    return jira_issue_get(issue_key=issue_key, detail=detail)  # pragma: no cover
 
 
 @mcp.tool()
@@ -265,6 +266,7 @@ def jira_search_issues_tool(
     updated_before: str | None = None,
     max_results: int = 50,
     start_at: int = 0,
+    detail: str | None = None,
 ) -> Dict[str, Any]:
     """Search for Jira issues using multiple criteria. At least one criterion required.
 
@@ -280,25 +282,29 @@ def jira_search_issues_tool(
         updated_before: Updated before date (YYYY-MM-DD)
         max_results: Maximum results (default: 50)
         start_at: Starting offset for pagination
+        detail: Response detail level: 'summary' (default) or 'full'
     """
     return jira_search_issues(  # pragma: no cover
         project=project, assignee=assignee, status=status, priority=priority,
         labels=labels, created_after=created_after, created_before=created_before,
         updated_after=updated_after, updated_before=updated_before,
-        max_results=max_results, start_at=start_at,
+        max_results=max_results, start_at=start_at, detail=detail,
     )
 
 
 @mcp.tool()
-def jira_search_jql_tool(jql: str, max_results: int = 50, start_at: int = 0) -> Dict[str, Any]:
+def jira_search_jql_tool(
+    jql: str, max_results: int = 50, start_at: int = 0, detail: str | None = None
+) -> Dict[str, Any]:
     """Execute a JQL query directly. Supports all JQL operators and ORDER BY.
 
     Args:
         jql: JQL query string
         max_results: Maximum results (default: 50)
         start_at: Starting offset for pagination
+        detail: Response detail level: 'summary' (default) or 'full'
     """
-    return jira_search_jql(jql=jql, max_results=max_results, start_at=start_at)  # pragma: no cover
+    return jira_search_jql(jql=jql, max_results=max_results, start_at=start_at, detail=detail)  # pragma: no cover
 
 
 # --- Filter Tools ---
@@ -336,16 +342,19 @@ def jira_filter_get_tool(filter_id: str) -> Dict[str, Any]:
 
 
 @mcp.tool()
-def jira_filter_execute_tool(filter_id: str, max_results: int = 50, start_at: int = 0) -> Dict[str, Any]:
+def jira_filter_execute_tool(
+    filter_id: str, max_results: int = 50, start_at: int = 0, detail: str | None = None
+) -> Dict[str, Any]:
     """Execute a saved filter and return matching issues.
 
     Args:
         filter_id: Filter ID
         max_results: Maximum results (default: 50)
         start_at: Starting offset for pagination
+        detail: Response detail level: 'summary' (default) or 'full'
     """
     return jira_filter_execute(  # pragma: no cover
-        filter_id=filter_id, max_results=max_results, start_at=start_at
+        filter_id=filter_id, max_results=max_results, start_at=start_at, detail=detail
     )
 
 
@@ -425,13 +434,14 @@ def jira_comment_add_tool(issue_key: str, body: str) -> Dict[str, Any]:
 
 
 @mcp.tool()
-def jira_comment_list_tool(issue_key: str) -> Dict[str, Any]:
+def jira_comment_list_tool(issue_key: str, detail: str | None = None) -> Dict[str, Any]:
     """List all comments on an issue.
 
     Args:
         issue_key: Issue key (e.g., "PROJ-123")
+        detail: Response detail level: 'summary' (default) or 'full'
     """
-    return jira_comment_list(issue_key=issue_key)  # pragma: no cover
+    return jira_comment_list(issue_key=issue_key, detail=detail)  # pragma: no cover
 
 
 @mcp.tool()
@@ -463,19 +473,24 @@ def jira_comment_delete_tool(issue_key: str, comment_id: str) -> Dict[str, Any]:
 
 
 @mcp.tool()
-def jira_project_list_tool() -> List[Dict[str, Any]]:
-    """List all accessible Jira projects."""
-    return jira_project_list()  # pragma: no cover
+def jira_project_list_tool(detail: str | None = None) -> List[Dict[str, Any]]:
+    """List all accessible Jira projects.
+
+    Args:
+        detail: Response detail level: 'summary' (default) or 'full'
+    """
+    return jira_project_list(detail=detail)  # pragma: no cover
 
 
 @mcp.tool()
-def jira_project_get_tool(project_key: str) -> Dict[str, Any]:
+def jira_project_get_tool(project_key: str, detail: str | None = None) -> Dict[str, Any]:
     """Get project details.
 
     Args:
         project_key: Project key (e.g., "PROJ")
+        detail: Response detail level: 'summary' (default) or 'full'
     """
-    return jira_project_get(project_key=project_key)  # pragma: no cover
+    return jira_project_get(project_key=project_key, detail=detail)  # pragma: no cover
 
 
 @mcp.tool()
@@ -502,13 +517,14 @@ def jira_board_list_tool(project_key: str | None = None) -> Dict[str, Any]:
 
 
 @mcp.tool()
-def jira_board_get_tool(board_id: str) -> Dict[str, Any]:
+def jira_board_get_tool(board_id: str, detail: str | None = None) -> Dict[str, Any]:
     """Get board details.
 
     Args:
         board_id: Board ID
+        detail: Response detail level: 'summary' (default) or 'full'
     """
-    return jira_board_get(board_id=board_id)  # pragma: no cover
+    return jira_board_get(board_id=board_id, detail=detail)  # pragma: no cover
 
 
 # --- Sprint Tools ---
@@ -526,26 +542,30 @@ def jira_sprint_list_tool(board_id: str, state: str | None = None) -> Dict[str, 
 
 
 @mcp.tool()
-def jira_sprint_get_tool(sprint_id: str) -> Dict[str, Any]:
+def jira_sprint_get_tool(sprint_id: str, detail: str | None = None) -> Dict[str, Any]:
     """Get sprint details.
 
     Args:
         sprint_id: Sprint ID
+        detail: Response detail level: 'summary' (default) or 'full'
     """
-    return jira_sprint_get(sprint_id=sprint_id)  # pragma: no cover
+    return jira_sprint_get(sprint_id=sprint_id, detail=detail)  # pragma: no cover
 
 
 @mcp.tool()
-def jira_sprint_issues_tool(sprint_id: str, max_results: int = 50, start_at: int = 0) -> Dict[str, Any]:
+def jira_sprint_issues_tool(
+    sprint_id: str, max_results: int = 50, start_at: int = 0, detail: str | None = None
+) -> Dict[str, Any]:
     """Get issues in a sprint.
 
     Args:
         sprint_id: Sprint ID
         max_results: Maximum results (default: 50)
         start_at: Starting offset for pagination
+        detail: Response detail level: 'summary' (default) or 'full'
     """
     return jira_sprint_issues(  # pragma: no cover
-        sprint_id=sprint_id, max_results=max_results, start_at=start_at
+        sprint_id=sprint_id, max_results=max_results, start_at=start_at, detail=detail
     )
 
 
@@ -574,30 +594,36 @@ def jira_sprint_remove_issues_tool(issue_keys: List[str]) -> Dict[str, Any]:
 
 
 @mcp.tool()
-def jira_user_search_tool(query: str, max_results: int = 50) -> List[Dict[str, Any]]:
+def jira_user_search_tool(query: str, max_results: int = 50, detail: str | None = None) -> List[Dict[str, Any]]:
     """Search for Jira users.
 
     Args:
         query: Search query (username, email, or display name)
         max_results: Maximum results (default: 50)
+        detail: Response detail level: 'summary' (default) or 'full'
     """
-    return jira_user_search(query=query, max_results=max_results)  # pragma: no cover
+    return jira_user_search(query=query, max_results=max_results, detail=detail)  # pragma: no cover
 
 
 @mcp.tool()
-def jira_user_get_tool(username: str) -> Dict[str, Any]:
+def jira_user_get_tool(username: str, detail: str | None = None) -> Dict[str, Any]:
     """Get user details.
 
     Args:
         username: Username to look up
+        detail: Response detail level: 'summary' (default) or 'full'
     """
-    return jira_user_get(username=username)  # pragma: no cover
+    return jira_user_get(username=username, detail=detail)  # pragma: no cover
 
 
 @mcp.tool()
-def jira_user_myself_tool() -> Dict[str, Any]:
-    """Get current authenticated user details."""
-    return jira_user_myself()  # pragma: no cover
+def jira_user_myself_tool(detail: str | None = None) -> Dict[str, Any]:
+    """Get current authenticated user details.
+
+    Args:
+        detail: Response detail level: 'summary' (default) or 'full'
+    """
+    return jira_user_myself(detail=detail)  # pragma: no cover
 
 
 # --- Attachment Tools ---
@@ -663,14 +689,14 @@ def main() -> None:
         _client = client
 
         initialize_issue_tools(config)
-        initialize_search_tools(client)
-        initialize_filter_tools(client)
+        initialize_search_tools(client, config)
+        initialize_filter_tools(client, config)
         initialize_workflow_tools(client)
-        initialize_comment_tools(client)
-        initialize_project_tools(client)
-        initialize_board_tools(client)
-        initialize_sprint_tools(client)
-        initialize_user_tools(client)
+        initialize_comment_tools(client, config)
+        initialize_project_tools(client, config)
+        initialize_board_tools(client, config)
+        initialize_sprint_tools(client, config)
+        initialize_user_tools(client, config)
         initialize_attachment_tools(client)
 
         from importlib.metadata import version as pkg_version

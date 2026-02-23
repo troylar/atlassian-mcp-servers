@@ -588,8 +588,10 @@ class TestSearchInitialize:
         from jira_mcp_server.tools import search_tools
 
         mock_client = _mock_client()
-        search_tools.initialize_search_tools(mock_client)
+        mock_config = MagicMock()
+        search_tools.initialize_search_tools(mock_client, mock_config)
         assert search_tools._client is mock_client
+        assert search_tools._config is mock_config
 
 
 # ===================== filter_tools =====================
@@ -826,8 +828,10 @@ class TestFilterInitialize:
         from jira_mcp_server.tools import filter_tools
 
         mock_client = _mock_client()
-        filter_tools.initialize_filter_tools(mock_client)
+        mock_config = MagicMock()
+        filter_tools.initialize_filter_tools(mock_client, mock_config)
         assert filter_tools._client is mock_client
+        assert filter_tools._config is mock_config
 
 
 # ===================== workflow_tools =====================
@@ -1166,8 +1170,10 @@ class TestCommentInitialize:
         from jira_mcp_server.tools import comment_tools
 
         mock_client = _mock_client()
-        comment_tools.initialize_comment_tools(mock_client)
+        mock_config = MagicMock()
+        comment_tools.initialize_comment_tools(mock_client, mock_config)
         assert comment_tools._client is mock_client
+        assert comment_tools._config is mock_config
 
 
 # ===================== project_tools =====================
@@ -1273,8 +1279,10 @@ class TestProjectInitialize:
         from jira_mcp_server.tools import project_tools
 
         mock_client = _mock_client()
-        project_tools.initialize_project_tools(mock_client)
+        mock_config = MagicMock()
+        project_tools.initialize_project_tools(mock_client, mock_config)
         assert project_tools._client is mock_client
+        assert project_tools._config is mock_config
 
 
 # ===================== board_tools =====================
@@ -1355,8 +1363,10 @@ class TestBoardInitialize:
         from jira_mcp_server.tools import board_tools
 
         mock_client = _mock_client()
-        board_tools.initialize_board_tools(mock_client)
+        mock_config = MagicMock()
+        board_tools.initialize_board_tools(mock_client, mock_config)
         assert board_tools._client is mock_client
+        assert board_tools._config is mock_config
 
 
 # ===================== sprint_tools =====================
@@ -1595,8 +1605,10 @@ class TestSprintInitialize:
         from jira_mcp_server.tools import sprint_tools
 
         mock_client = _mock_client()
-        sprint_tools.initialize_sprint_tools(mock_client)
+        mock_config = MagicMock()
+        sprint_tools.initialize_sprint_tools(mock_client, mock_config)
         assert sprint_tools._client is mock_client
+        assert sprint_tools._config is mock_config
 
 
 # ===================== user_tools =====================
@@ -1709,8 +1721,10 @@ class TestUserInitialize:
         from jira_mcp_server.tools import user_tools
 
         mock_client = _mock_client()
-        user_tools.initialize_user_tools(mock_client)
+        mock_config = MagicMock()
+        user_tools.initialize_user_tools(mock_client, mock_config)
         assert user_tools._client is mock_client
+        assert user_tools._config is mock_config
 
 
 # ===================== attachment_tools =====================
@@ -1846,3 +1860,234 @@ class TestAttachmentInitialize:
         mock_client = _mock_client()
         attachment_tools.initialize_attachment_tools(mock_client)
         assert attachment_tools._client is mock_client
+
+
+# ===================== detail parameter tests =====================
+
+
+def _summary_config() -> MagicMock:
+    config = MagicMock()
+    config.default_detail = "summary"
+    config.max_description_length = 500
+    config.include_links = False
+    config.summary_fields = None
+    return config
+
+
+class TestIssueGetDetail:
+    def test_summary_mode(self) -> None:
+        from jira_mcp_server.tools import issue_tools
+
+        mock_client = _mock_client()
+        mock_client.get_issue.return_value = {
+            "key": "PROJ-1",
+            "fields": {
+                "summary": "Test",
+                "status": {"name": "Open"},
+                "assignee": None,
+                "priority": {"name": "Medium"},
+                "issuetype": {"name": "Task"},
+                "labels": [],
+                "components": [],
+                "resolution": None,
+                "description": None,
+                "created": "2024-01-01",
+                "updated": "2024-01-02",
+                "duedate": None,
+            },
+        }
+        issue_tools._client = mock_client
+        issue_tools._config = _summary_config()
+        result = issue_tools.jira_issue_get("PROJ-1", detail="summary")
+        assert result["key"] == "PROJ-1"
+        assert result["status"] == "Open"
+        assert "fields" not in result
+        mock_client.get_issue.assert_called_once()
+        call_args = mock_client.get_issue.call_args
+        assert call_args[1].get("fields") is not None
+
+
+class TestSearchIssuesDetail:
+    def test_summary_mode(self) -> None:
+        from jira_mcp_server.tools import search_tools
+
+        mock_client = _mock_client()
+        mock_client.search_issues.return_value = {
+            "total": 1, "startAt": 0, "maxResults": 50,
+            "issues": [{"key": "PROJ-1", "fields": {"summary": "Test"}}],
+        }
+        search_tools._client = mock_client
+        search_tools._config = _summary_config()
+        result = search_tools.jira_search_issues(project="TEST", detail="summary")
+        assert result["total"] == 1
+        assert result["issues"][0]["key"] == "PROJ-1"
+        assert "fields" not in result["issues"][0]
+
+
+class TestSearchJqlDetail:
+    def test_summary_mode(self) -> None:
+        from jira_mcp_server.tools import search_tools
+
+        mock_client = _mock_client()
+        mock_client.search_issues.return_value = {
+            "total": 0, "startAt": 0, "maxResults": 50, "issues": [],
+        }
+        search_tools._client = mock_client
+        search_tools._config = _summary_config()
+        result = search_tools.jira_search_jql("project = TEST", detail="summary")
+        assert result["total"] == 0
+        assert result["issues"] == []
+
+
+class TestFilterExecuteDetail:
+    def test_summary_mode(self) -> None:
+        from jira_mcp_server.tools import filter_tools
+
+        mock_client = _mock_client()
+        mock_client.get_filter.return_value = {"jql": "project = TEST"}
+        mock_client.search_issues.return_value = {
+            "total": 1, "startAt": 0, "maxResults": 50,
+            "issues": [{"key": "PROJ-1", "fields": {"summary": "Test"}}],
+        }
+        filter_tools._client = mock_client
+        filter_tools._config = _summary_config()
+        result = filter_tools.jira_filter_execute("123", detail="summary")
+        assert result["total"] == 1
+        assert "fields" not in result["issues"][0]
+
+
+class TestCommentListDetail:
+    def test_summary_mode(self) -> None:
+        from jira_mcp_server.tools import comment_tools
+
+        mock_client = _mock_client()
+        mock_client.list_comments.return_value = {
+            "total": 1,
+            "comments": [{"id": "1", "body": "hello", "author": {"name": "troy"}}],
+        }
+        comment_tools._client = mock_client
+        comment_tools._config = _summary_config()
+        result = comment_tools.jira_comment_list("PROJ-1", detail="summary")
+        assert result["total"] == 1
+        assert result["comments"][0]["author"] == "troy"
+
+
+class TestProjectListDetail:
+    def test_summary_mode(self) -> None:
+        from jira_mcp_server.tools import project_tools
+
+        mock_client = _mock_client()
+        mock_client.list_projects.return_value = [
+            {"key": "PROJ", "name": "Project", "self": "https://jira/p/1"},
+        ]
+        project_tools._client = mock_client
+        project_tools._config = _summary_config()
+        result = project_tools.jira_project_list(detail="summary")
+        assert result[0]["key"] == "PROJ"
+        assert "self" not in result[0]
+
+
+class TestProjectGetDetail:
+    def test_summary_mode(self) -> None:
+        from jira_mcp_server.tools import project_tools
+
+        mock_client = _mock_client()
+        mock_client.get_project.return_value = {
+            "key": "PROJ", "name": "Project", "self": "https://jira/p/1",
+        }
+        project_tools._client = mock_client
+        project_tools._config = _summary_config()
+        result = project_tools.jira_project_get("PROJ", detail="summary")
+        assert result["key"] == "PROJ"
+        assert "self" not in result
+
+
+class TestBoardGetDetail:
+    def test_summary_mode(self) -> None:
+        from jira_mcp_server.tools import board_tools
+
+        mock_client = _mock_client()
+        mock_client.get_board.return_value = {
+            "id": 1, "name": "Board", "type": "scrum", "self": "https://jira/b/1",
+        }
+        board_tools._client = mock_client
+        board_tools._config = _summary_config()
+        result = board_tools.jira_board_get("1", detail="summary")
+        assert result["id"] == 1
+        assert "self" not in result
+
+
+class TestSprintGetDetail:
+    def test_summary_mode(self) -> None:
+        from jira_mcp_server.tools import sprint_tools
+
+        mock_client = _mock_client()
+        mock_client.get_sprint.return_value = {
+            "id": 42, "name": "Sprint 1", "state": "active", "self": "https://jira/s/42",
+        }
+        sprint_tools._client = mock_client
+        sprint_tools._config = _summary_config()
+        result = sprint_tools.jira_sprint_get("42", detail="summary")
+        assert result["id"] == 42
+        assert "self" not in result
+
+
+class TestSprintIssuesDetail:
+    def test_summary_mode(self) -> None:
+        from jira_mcp_server.tools import sprint_tools
+
+        mock_client = _mock_client()
+        mock_client.get_sprint_issues.return_value = {
+            "total": 1, "startAt": 0, "maxResults": 50,
+            "issues": [{"key": "PROJ-1", "fields": {"summary": "Test"}}],
+        }
+        sprint_tools._client = mock_client
+        sprint_tools._config = _summary_config()
+        result = sprint_tools.jira_sprint_issues("42", detail="summary")
+        assert result["total"] == 1
+        assert "fields" not in result["issues"][0]
+
+
+class TestUserSearchDetail:
+    def test_summary_mode(self) -> None:
+        from jira_mcp_server.tools import user_tools
+
+        mock_client = _mock_client()
+        mock_client.search_users.return_value = [
+            {"name": "troy", "displayName": "Troy", "self": "https://jira/u/1"},
+        ]
+        user_tools._client = mock_client
+        user_tools._config = _summary_config()
+        result = user_tools.jira_user_search("troy", detail="summary")
+        assert result[0]["displayName"] == "Troy"
+        assert "self" not in result[0]
+
+
+class TestUserGetDetail:
+    def test_summary_mode(self) -> None:
+        from jira_mcp_server.tools import user_tools
+
+        mock_client = _mock_client()
+        mock_client.get_user.return_value = {
+            "name": "troy", "displayName": "Troy", "self": "https://jira/u/1",
+        }
+        user_tools._client = mock_client
+        user_tools._config = _summary_config()
+        result = user_tools.jira_user_get("troy", detail="summary")
+        assert result["displayName"] == "Troy"
+        assert "self" not in result
+
+
+class TestUserMyselfDetail:
+    def test_summary_mode(self) -> None:
+        from jira_mcp_server.tools import user_tools
+
+        mock_client = _mock_client()
+        mock_client.get_myself.return_value = {
+            "name": "troy", "displayName": "Troy", "self": "https://jira/u/1",
+        }
+        user_tools._client = mock_client
+        user_tools._config = _summary_config()
+        result = user_tools.jira_user_myself(detail="summary")
+        assert result["displayName"] == "Troy"
+        assert "self" not in result

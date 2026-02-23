@@ -3,14 +3,18 @@
 from typing import Any, Dict, Optional
 
 from jira_mcp_server.client import JiraClient
+from jira_mcp_server.config import JiraConfig
+from jira_mcp_server.formatters import _resolve_detail, format_comments
 from jira_mcp_server.utils.text import sanitize_long_text
 
 _client: Optional[JiraClient] = None
+_config: Optional[JiraConfig] = None
 
 
-def initialize_comment_tools(client: JiraClient) -> None:
-    global _client
+def initialize_comment_tools(client: JiraClient, config: JiraConfig) -> None:
+    global _client, _config
     _client = client
+    _config = config
 
 
 def jira_comment_add(issue_key: str, body: str) -> Dict[str, Any]:
@@ -26,13 +30,17 @@ def jira_comment_add(issue_key: str, body: str) -> Dict[str, Any]:
         raise ValueError(f"Add comment failed: {str(e)}")
 
 
-def jira_comment_list(issue_key: str) -> Dict[str, Any]:
+def jira_comment_list(issue_key: str, detail: Optional[str] = None) -> Dict[str, Any]:
     if not _client:
         raise RuntimeError("Comment tools not initialized")
+    resolved = _resolve_detail(detail, _config)
     if not issue_key or not issue_key.strip():
         raise ValueError("Issue key cannot be empty")
     try:
-        return _client.list_comments(issue_key=issue_key)
+        raw = _client.list_comments(issue_key=issue_key)
+        if resolved == "summary":
+            return format_comments(raw, _config)
+        return raw
     except Exception as e:
         raise ValueError(f"List comments failed: {str(e)}")
 
