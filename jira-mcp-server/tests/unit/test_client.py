@@ -1040,6 +1040,105 @@ class TestAttachmentOperations:
                 client.delete_attachment("10000")
 
 
+class TestWorklogOperations:
+    def test_add_worklog_success(self) -> None:
+        client = JiraClient(_make_config())
+        mock_resp = _mock_response(201, {"id": "10000", "timeSpent": "2h"})
+        with patch.object(client, "_request", return_value=mock_resp):
+            result = client.add_worklog("TEST-1", "2h")
+        assert result["id"] == "10000"
+
+    def test_add_worklog_200(self) -> None:
+        client = JiraClient(_make_config())
+        mock_resp = _mock_response(200, {"id": "10000"})
+        with patch.object(client, "_request", return_value=mock_resp):
+            result = client.add_worklog("TEST-1", "2h")
+        assert result["id"] == "10000"
+
+    def test_add_worklog_with_comment_and_started(self) -> None:
+        client = JiraClient(_make_config())
+        mock_resp = _mock_response(201, {"id": "10000", "timeSpent": "1h"})
+        with patch.object(client, "_request", return_value=mock_resp) as mock_req:
+            result = client.add_worklog("TEST-1", "1h", comment="Working on it", started="2024-01-01T00:00:00.000+0000")
+        call_data = mock_req.call_args[1]["json"]
+        assert call_data["timeSpent"] == "1h"
+        assert call_data["comment"] == "Working on it"
+        assert call_data["started"] == "2024-01-01T00:00:00.000+0000"
+        assert result["id"] == "10000"
+
+    def test_add_worklog_without_optional_fields(self) -> None:
+        client = JiraClient(_make_config())
+        mock_resp = _mock_response(201, {"id": "10000"})
+        with patch.object(client, "_request", return_value=mock_resp) as mock_req:
+            client.add_worklog("TEST-1", "30m")
+        call_data = mock_req.call_args[1]["json"]
+        assert call_data == {"timeSpent": "30m"}
+
+    def test_add_worklog_error(self) -> None:
+        client = JiraClient(_make_config())
+        mock_resp = _mock_response(404)
+        mock_resp.request.url = "https://jira.example.com/rest/api/2/issue/TEST-1/worklog"
+        with patch.object(client, "_request", return_value=mock_resp):
+            with pytest.raises(ValueError, match="Resource not found"):
+                client.add_worklog("TEST-1", "2h")
+
+    def test_add_worklog_timeout(self) -> None:
+        client = JiraClient(_make_config())
+        with patch.object(client, "_request", side_effect=httpx.TimeoutException("timeout")):
+            with pytest.raises(ValueError, match="Timeout adding worklog"):
+                client.add_worklog("TEST-1", "2h")
+
+    def test_list_worklogs_success(self) -> None:
+        client = JiraClient(_make_config())
+        mock_resp = _mock_response(200, {"worklogs": [{"id": "1", "timeSpent": "2h"}], "total": 1})
+        with patch.object(client, "_request", return_value=mock_resp):
+            result = client.list_worklogs("TEST-1")
+        assert result["total"] == 1
+        assert len(result["worklogs"]) == 1
+
+    def test_list_worklogs_error(self) -> None:
+        client = JiraClient(_make_config())
+        mock_resp = _mock_response(401)
+        mock_resp.request.url = "https://jira.example.com/rest/api/2/issue/TEST-1/worklog"
+        with patch.object(client, "_request", return_value=mock_resp):
+            with pytest.raises(ValueError, match="Authentication failed"):
+                client.list_worklogs("TEST-1")
+
+    def test_list_worklogs_timeout(self) -> None:
+        client = JiraClient(_make_config())
+        with patch.object(client, "_request", side_effect=httpx.TimeoutException("timeout")):
+            with pytest.raises(ValueError, match="Timeout listing worklogs"):
+                client.list_worklogs("TEST-1")
+
+    def test_delete_worklog_success(self) -> None:
+        client = JiraClient(_make_config())
+        mock_resp = _mock_response(204)
+        with patch.object(client, "_request", return_value=mock_resp):
+            client.delete_worklog("TEST-1", "10000")
+
+    def test_delete_worklog_error(self) -> None:
+        client = JiraClient(_make_config())
+        mock_resp = _mock_response(404)
+        mock_resp.request.url = "https://jira.example.com/rest/api/2/issue/TEST-1/worklog/10000"
+        with patch.object(client, "_request", return_value=mock_resp):
+            with pytest.raises(ValueError, match="Resource not found"):
+                client.delete_worklog("TEST-1", "10000")
+
+    def test_delete_worklog_timeout(self) -> None:
+        client = JiraClient(_make_config())
+        with patch.object(client, "_request", side_effect=httpx.TimeoutException("timeout")):
+            with pytest.raises(ValueError, match="Timeout deleting worklog"):
+                client.delete_worklog("TEST-1", "10000")
+
+    def test_delete_worklog_permission_denied(self) -> None:
+        client = JiraClient(_make_config())
+        mock_resp = _mock_response(403)
+        mock_resp.request.url = "https://jira.example.com/rest/api/2/issue/TEST-1/worklog/10000"
+        with patch.object(client, "_request", return_value=mock_resp):
+            with pytest.raises(ValueError, match="Permission denied"):
+                client.delete_worklog("TEST-1", "10000")
+
+
 class TestPriorityAndStatus:
     def test_list_priorities_success(self) -> None:
         client = JiraClient(_make_config())

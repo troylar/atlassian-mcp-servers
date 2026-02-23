@@ -1862,6 +1862,185 @@ class TestAttachmentInitialize:
         assert attachment_tools._client is mock_client
 
 
+# ===================== worklog_tools =====================
+
+
+class TestWorklogAdd:
+    def test_not_initialized(self) -> None:
+        from jira_mcp_server.tools import worklog_tools
+
+        worklog_tools._client = None
+        with pytest.raises(RuntimeError, match="not initialized"):
+            worklog_tools.jira_worklog_add("TEST-1", "2h")
+
+    def test_success(self) -> None:
+        from jira_mcp_server.tools import worklog_tools
+
+        mock_client = _mock_client()
+        mock_client.add_worklog.return_value = {"id": "100", "timeSpent": "2h"}
+        worklog_tools._client = mock_client
+        result = worklog_tools.jira_worklog_add("TEST-1", "2h")
+        assert result["id"] == "100"
+        mock_client.add_worklog.assert_called_once_with(
+            issue_key="TEST-1", time_spent="2h", comment=None, started=None
+        )
+
+    def test_with_comment_and_started(self) -> None:
+        from jira_mcp_server.tools import worklog_tools
+
+        mock_client = _mock_client()
+        mock_client.add_worklog.return_value = {"id": "100"}
+        worklog_tools._client = mock_client
+        result = worklog_tools.jira_worklog_add(
+            "TEST-1", "1h", comment="Working", started="2024-01-01T00:00:00.000+0000"
+        )
+        assert result["id"] == "100"
+        mock_client.add_worklog.assert_called_once_with(
+            issue_key="TEST-1",
+            time_spent="1h",
+            comment="Working",
+            started="2024-01-01T00:00:00.000+0000",
+        )
+
+    def test_empty_key_raises(self) -> None:
+        from jira_mcp_server.tools import worklog_tools
+
+        worklog_tools._client = _mock_client()
+        with pytest.raises(ValueError, match="Issue key cannot be empty"):
+            worklog_tools.jira_worklog_add("", "2h")
+
+    def test_whitespace_key_raises(self) -> None:
+        from jira_mcp_server.tools import worklog_tools
+
+        worklog_tools._client = _mock_client()
+        with pytest.raises(ValueError, match="Issue key cannot be empty"):
+            worklog_tools.jira_worklog_add("   ", "2h")
+
+    def test_empty_time_spent_raises(self) -> None:
+        from jira_mcp_server.tools import worklog_tools
+
+        worklog_tools._client = _mock_client()
+        with pytest.raises(ValueError, match="Time spent cannot be empty"):
+            worklog_tools.jira_worklog_add("TEST-1", "")
+
+    def test_whitespace_time_spent_raises(self) -> None:
+        from jira_mcp_server.tools import worklog_tools
+
+        worklog_tools._client = _mock_client()
+        with pytest.raises(ValueError, match="Time spent cannot be empty"):
+            worklog_tools.jira_worklog_add("TEST-1", "   ")
+
+    def test_client_failure(self) -> None:
+        from jira_mcp_server.tools import worklog_tools
+
+        mock_client = _mock_client()
+        mock_client.add_worklog.side_effect = ValueError("error")
+        worklog_tools._client = mock_client
+        with pytest.raises(ValueError, match="Add worklog failed"):
+            worklog_tools.jira_worklog_add("TEST-1", "2h")
+
+
+class TestWorklogList:
+    def test_not_initialized(self) -> None:
+        from jira_mcp_server.tools import worklog_tools
+
+        worklog_tools._client = None
+        with pytest.raises(RuntimeError, match="not initialized"):
+            worklog_tools.jira_worklog_list("TEST-1")
+
+    def test_success(self) -> None:
+        from jira_mcp_server.tools import worklog_tools
+
+        mock_client = _mock_client()
+        mock_client.list_worklogs.return_value = {
+            "worklogs": [{"id": "1", "timeSpent": "2h"}],
+            "total": 1,
+        }
+        worklog_tools._client = mock_client
+        result = worklog_tools.jira_worklog_list("TEST-1")
+        assert result["total"] == 1
+        assert len(result["worklogs"]) == 1
+
+    def test_empty_key_raises(self) -> None:
+        from jira_mcp_server.tools import worklog_tools
+
+        worklog_tools._client = _mock_client()
+        with pytest.raises(ValueError, match="Issue key cannot be empty"):
+            worklog_tools.jira_worklog_list("")
+
+    def test_client_failure(self) -> None:
+        from jira_mcp_server.tools import worklog_tools
+
+        mock_client = _mock_client()
+        mock_client.list_worklogs.side_effect = ValueError("error")
+        worklog_tools._client = mock_client
+        with pytest.raises(ValueError, match="List worklogs failed"):
+            worklog_tools.jira_worklog_list("TEST-1")
+
+
+class TestWorklogDelete:
+    def test_not_initialized(self) -> None:
+        from jira_mcp_server.tools import worklog_tools
+
+        worklog_tools._client = None
+        with pytest.raises(RuntimeError, match="not initialized"):
+            worklog_tools.jira_worklog_delete("TEST-1", "100")
+
+    def test_success(self) -> None:
+        from jira_mcp_server.tools import worklog_tools
+
+        mock_client = _mock_client()
+        worklog_tools._client = mock_client
+        result = worklog_tools.jira_worklog_delete("TEST-1", "100")
+        assert result["success"] is True
+        assert result["worklog_id"] == "100"
+        assert result["issue_key"] == "TEST-1"
+        mock_client.delete_worklog.assert_called_once_with(
+            issue_key="TEST-1", worklog_id="100"
+        )
+
+    def test_empty_key_raises(self) -> None:
+        from jira_mcp_server.tools import worklog_tools
+
+        worklog_tools._client = _mock_client()
+        with pytest.raises(ValueError, match="Issue key cannot be empty"):
+            worklog_tools.jira_worklog_delete("", "100")
+
+    def test_empty_worklog_id_raises(self) -> None:
+        from jira_mcp_server.tools import worklog_tools
+
+        worklog_tools._client = _mock_client()
+        with pytest.raises(ValueError, match="Worklog ID cannot be empty"):
+            worklog_tools.jira_worklog_delete("TEST-1", "")
+
+    def test_whitespace_worklog_id_raises(self) -> None:
+        from jira_mcp_server.tools import worklog_tools
+
+        worklog_tools._client = _mock_client()
+        with pytest.raises(ValueError, match="Worklog ID cannot be empty"):
+            worklog_tools.jira_worklog_delete("TEST-1", "   ")
+
+    def test_client_failure(self) -> None:
+        from jira_mcp_server.tools import worklog_tools
+
+        mock_client = _mock_client()
+        mock_client.delete_worklog.side_effect = ValueError("error")
+        worklog_tools._client = mock_client
+        with pytest.raises(ValueError, match="Delete worklog failed"):
+            worklog_tools.jira_worklog_delete("TEST-1", "100")
+
+
+class TestWorklogInitialize:
+    def test_initialize(self) -> None:
+        from jira_mcp_server.tools import worklog_tools
+
+        mock_client = _mock_client()
+        mock_config = MagicMock()
+        worklog_tools.initialize_worklog_tools(mock_client, mock_config)
+        assert worklog_tools._client is mock_client
+        assert worklog_tools._config is mock_config
+
+
 # ===================== detail parameter tests =====================
 
 
