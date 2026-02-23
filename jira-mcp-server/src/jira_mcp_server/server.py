@@ -10,69 +10,139 @@ from jira_mcp_server.client import JiraClient
 from jira_mcp_server.config import JiraConfig
 from jira_mcp_server.tools.attachment_tools import (
     initialize_attachment_tools,
-    jira_attachment_add,
-    jira_attachment_delete,
-    jira_attachment_get,
+)
+from jira_mcp_server.tools.attachment_tools import (
+    jira_attachment_add as _impl_attachment_add,
+)
+from jira_mcp_server.tools.attachment_tools import (
+    jira_attachment_delete as _impl_attachment_delete,
+)
+from jira_mcp_server.tools.attachment_tools import (
+    jira_attachment_get as _impl_attachment_get,
 )
 from jira_mcp_server.tools.board_tools import (
     initialize_board_tools,
-    jira_board_get,
-    jira_board_list,
+)
+from jira_mcp_server.tools.board_tools import (
+    jira_board_get as _impl_board_get,
+)
+from jira_mcp_server.tools.board_tools import (
+    jira_board_list as _impl_board_list,
 )
 from jira_mcp_server.tools.comment_tools import (
     initialize_comment_tools,
-    jira_comment_add,
-    jira_comment_delete,
-    jira_comment_list,
-    jira_comment_update,
+)
+from jira_mcp_server.tools.comment_tools import (
+    jira_comment_add as _impl_comment_add,
+)
+from jira_mcp_server.tools.comment_tools import (
+    jira_comment_delete as _impl_comment_delete,
+)
+from jira_mcp_server.tools.comment_tools import (
+    jira_comment_list as _impl_comment_list,
+)
+from jira_mcp_server.tools.comment_tools import (
+    jira_comment_update as _impl_comment_update,
 )
 from jira_mcp_server.tools.filter_tools import (
     initialize_filter_tools,
-    jira_filter_create,
-    jira_filter_delete,
-    jira_filter_execute,
-    jira_filter_get,
-    jira_filter_list,
-    jira_filter_update,
+)
+from jira_mcp_server.tools.filter_tools import (
+    jira_filter_create as _impl_filter_create,
+)
+from jira_mcp_server.tools.filter_tools import (
+    jira_filter_delete as _impl_filter_delete,
+)
+from jira_mcp_server.tools.filter_tools import (
+    jira_filter_execute as _impl_filter_execute,
+)
+from jira_mcp_server.tools.filter_tools import (
+    jira_filter_get as _impl_filter_get,
+)
+from jira_mcp_server.tools.filter_tools import (
+    jira_filter_list as _impl_filter_list,
+)
+from jira_mcp_server.tools.filter_tools import (
+    jira_filter_update as _impl_filter_update,
 )
 from jira_mcp_server.tools.issue_tools import (
     _get_field_schema,
     initialize_issue_tools,
-    jira_issue_create,
-    jira_issue_delete,
-    jira_issue_get,
-    jira_issue_link,
-    jira_issue_update,
+)
+from jira_mcp_server.tools.issue_tools import (
+    jira_issue_create as _impl_issue_create,
+)
+from jira_mcp_server.tools.issue_tools import (
+    jira_issue_delete as _impl_issue_delete,
+)
+from jira_mcp_server.tools.issue_tools import (
+    jira_issue_get as _impl_issue_get,
+)
+from jira_mcp_server.tools.issue_tools import (
+    jira_issue_link as _impl_issue_link,
+)
+from jira_mcp_server.tools.issue_tools import (
+    jira_issue_update as _impl_issue_update,
 )
 from jira_mcp_server.tools.project_tools import (
     initialize_project_tools,
-    jira_project_get,
-    jira_project_issue_types,
-    jira_project_list,
+)
+from jira_mcp_server.tools.project_tools import (
+    jira_project_get as _impl_project_get,
+)
+from jira_mcp_server.tools.project_tools import (
+    jira_project_issue_types as _impl_project_issue_types,
+)
+from jira_mcp_server.tools.project_tools import (
+    jira_project_list as _impl_project_list,
 )
 from jira_mcp_server.tools.search_tools import (
     initialize_search_tools,
-    jira_search_issues,
-    jira_search_jql,
+)
+from jira_mcp_server.tools.search_tools import (
+    jira_search_issues as _impl_search_issues,
+)
+from jira_mcp_server.tools.search_tools import (
+    jira_search_jql as _impl_search_jql,
 )
 from jira_mcp_server.tools.sprint_tools import (
     initialize_sprint_tools,
-    jira_sprint_add_issues,
-    jira_sprint_get,
-    jira_sprint_issues,
-    jira_sprint_list,
-    jira_sprint_remove_issues,
+)
+from jira_mcp_server.tools.sprint_tools import (
+    jira_sprint_add_issues as _impl_sprint_add_issues,
+)
+from jira_mcp_server.tools.sprint_tools import (
+    jira_sprint_get as _impl_sprint_get,
+)
+from jira_mcp_server.tools.sprint_tools import (
+    jira_sprint_issues as _impl_sprint_issues,
+)
+from jira_mcp_server.tools.sprint_tools import (
+    jira_sprint_list as _impl_sprint_list,
+)
+from jira_mcp_server.tools.sprint_tools import (
+    jira_sprint_remove_issues as _impl_sprint_remove_issues,
 )
 from jira_mcp_server.tools.user_tools import (
     initialize_user_tools,
-    jira_user_get,
-    jira_user_myself,
-    jira_user_search,
+)
+from jira_mcp_server.tools.user_tools import (
+    jira_user_get as _impl_user_get,
+)
+from jira_mcp_server.tools.user_tools import (
+    jira_user_myself as _impl_user_myself,
+)
+from jira_mcp_server.tools.user_tools import (
+    jira_user_search as _impl_user_search,
 )
 from jira_mcp_server.tools.workflow_tools import (
     initialize_workflow_tools,
-    jira_workflow_get_transitions,
-    jira_workflow_transition,
+)
+from jira_mcp_server.tools.workflow_tools import (
+    jira_workflow_get_transitions as _impl_workflow_get_transitions,
+)
+from jira_mcp_server.tools.workflow_tools import (
+    jira_workflow_transition as _impl_workflow_transition,
 )
 
 logger = logging.getLogger(__name__)
@@ -110,7 +180,7 @@ def jira_health_check() -> Dict[str, Any]:  # pragma: no cover
 
 
 @mcp.tool()
-def jira_issue_create_tool(
+def jira_issue_create(
     project: str,
     summary: str,
     issue_type: str = "Task",
@@ -137,7 +207,7 @@ def jira_issue_create_tool(
     kwargs = {}  # pragma: no cover
     if custom_fields:  # pragma: no cover
         kwargs.update(custom_fields)  # pragma: no cover
-    return jira_issue_create(  # pragma: no cover
+    return _impl_issue_create(  # pragma: no cover
         project=project,
         summary=summary,
         issue_type=issue_type,
@@ -151,7 +221,7 @@ def jira_issue_create_tool(
 
 
 @mcp.tool()
-def jira_issue_update_tool(
+def jira_issue_update(
     issue_key: str,
     summary: str | None = None,
     description: str | None = None,
@@ -176,7 +246,7 @@ def jira_issue_update_tool(
     kwargs = {}  # pragma: no cover
     if custom_fields:  # pragma: no cover
         kwargs.update(custom_fields)  # pragma: no cover
-    return jira_issue_update(  # pragma: no cover
+    return _impl_issue_update(  # pragma: no cover
         issue_key=issue_key,
         summary=summary,
         description=description,
@@ -189,29 +259,29 @@ def jira_issue_update_tool(
 
 
 @mcp.tool()
-def jira_issue_get_tool(issue_key: str, detail: str | None = None) -> Dict[str, Any]:
+def jira_issue_get(issue_key: str, detail: str | None = None) -> Dict[str, Any]:
     """Retrieve a Jira issue. Returns summary by default; use detail='full' for all fields.
 
     Args:
         issue_key: Issue key (e.g., "PROJ-123")
         detail: Response detail level: 'summary' (default) or 'full'
     """
-    return jira_issue_get(issue_key=issue_key, detail=detail)  # pragma: no cover
+    return _impl_issue_get(issue_key=issue_key, detail=detail)  # pragma: no cover
 
 
 @mcp.tool()
-def jira_issue_delete_tool(issue_key: str, delete_subtasks: bool = False) -> Dict[str, Any]:
+def jira_issue_delete(issue_key: str, delete_subtasks: bool = False) -> Dict[str, Any]:
     """Delete a Jira issue.
 
     Args:
         issue_key: Issue key (e.g., "PROJ-123")
         delete_subtasks: Whether to also delete subtasks (default: False)
     """
-    return jira_issue_delete(issue_key=issue_key, delete_subtasks=delete_subtasks)  # pragma: no cover
+    return _impl_issue_delete(issue_key=issue_key, delete_subtasks=delete_subtasks)  # pragma: no cover
 
 
 @mcp.tool()
-def jira_issue_link_tool(link_type: str, inward_issue: str, outward_issue: str) -> Dict[str, Any]:
+def jira_issue_link(link_type: str, inward_issue: str, outward_issue: str) -> Dict[str, Any]:
     """Link two Jira issues together.
 
     Args:
@@ -219,7 +289,7 @@ def jira_issue_link_tool(link_type: str, inward_issue: str, outward_issue: str) 
         inward_issue: Inward issue key (e.g., "PROJ-123")
         outward_issue: Outward issue key (e.g., "PROJ-456")
     """
-    return jira_issue_link(  # pragma: no cover
+    return _impl_issue_link(  # pragma: no cover
         link_type=link_type, inward_issue=inward_issue, outward_issue=outward_issue
     )
 
@@ -257,7 +327,7 @@ def jira_project_get_schema(project: str, issue_type: str = "Task") -> Dict[str,
 
 
 @mcp.tool()
-def jira_search_issues_tool(
+def jira_search_issues(
     project: str | None = None,
     assignee: str | None = None,
     status: str | None = None,
@@ -287,7 +357,7 @@ def jira_search_issues_tool(
         start_at: Starting offset for pagination
         detail: Response detail level: 'summary' (default) or 'full'
     """
-    return jira_search_issues(  # pragma: no cover
+    return _impl_search_issues(  # pragma: no cover
         project=project, assignee=assignee, status=status, priority=priority,
         labels=labels, created_after=created_after, created_before=created_before,
         updated_after=updated_after, updated_before=updated_before,
@@ -296,7 +366,7 @@ def jira_search_issues_tool(
 
 
 @mcp.tool()
-def jira_search_jql_tool(
+def jira_search_jql(
     jql: str, max_results: int = 50, start_at: int = 0, detail: str | None = None
 ) -> Dict[str, Any]:
     """Execute a JQL query directly. Supports all JQL operators and ORDER BY.
@@ -307,14 +377,14 @@ def jira_search_jql_tool(
         start_at: Starting offset for pagination
         detail: Response detail level: 'summary' (default) or 'full'
     """
-    return jira_search_jql(jql=jql, max_results=max_results, start_at=start_at, detail=detail)  # pragma: no cover
+    return _impl_search_jql(jql=jql, max_results=max_results, start_at=start_at, detail=detail)  # pragma: no cover
 
 
 # --- Filter Tools ---
 
 
 @mcp.tool()
-def jira_filter_create_tool(
+def jira_filter_create(
     name: str, jql: str, description: str | None = None, favourite: bool = False
 ) -> Dict[str, Any]:
     """Create a new saved filter for reusing complex search queries.
@@ -325,27 +395,27 @@ def jira_filter_create_tool(
         description: Optional filter description
         favourite: Whether to mark as favorite
     """
-    return jira_filter_create(name=name, jql=jql, description=description, favourite=favourite)  # pragma: no cover
+    return _impl_filter_create(name=name, jql=jql, description=description, favourite=favourite)  # pragma: no cover
 
 
 @mcp.tool()
-def jira_filter_list_tool() -> Dict[str, Any]:
+def jira_filter_list() -> Dict[str, Any]:
     """List all accessible filters."""
-    return jira_filter_list()  # pragma: no cover
+    return _impl_filter_list()  # pragma: no cover
 
 
 @mcp.tool()
-def jira_filter_get_tool(filter_id: str) -> Dict[str, Any]:
+def jira_filter_get(filter_id: str) -> Dict[str, Any]:
     """Get complete filter details by ID.
 
     Args:
         filter_id: Filter ID
     """
-    return jira_filter_get(filter_id=filter_id)  # pragma: no cover
+    return _impl_filter_get(filter_id=filter_id)  # pragma: no cover
 
 
 @mcp.tool()
-def jira_filter_execute_tool(
+def jira_filter_execute(
     filter_id: str, max_results: int = 50, start_at: int = 0, detail: str | None = None
 ) -> Dict[str, Any]:
     """Execute a saved filter and return matching issues.
@@ -356,13 +426,13 @@ def jira_filter_execute_tool(
         start_at: Starting offset for pagination
         detail: Response detail level: 'summary' (default) or 'full'
     """
-    return jira_filter_execute(  # pragma: no cover
+    return _impl_filter_execute(  # pragma: no cover
         filter_id=filter_id, max_results=max_results, start_at=start_at, detail=detail
     )
 
 
 @mcp.tool()
-def jira_filter_update_tool(
+def jira_filter_update(
     filter_id: str,
     name: str | None = None,
     jql: str | None = None,
@@ -378,36 +448,36 @@ def jira_filter_update_tool(
         description: New description
         favourite: Whether to mark as favorite
     """
-    return jira_filter_update(  # pragma: no cover
+    return _impl_filter_update(  # pragma: no cover
         filter_id=filter_id, name=name, jql=jql, description=description, favourite=favourite
     )
 
 
 @mcp.tool()
-def jira_filter_delete_tool(filter_id: str) -> Dict[str, Any]:
+def jira_filter_delete(filter_id: str) -> Dict[str, Any]:
     """Delete a filter. Only the filter owner can delete it.
 
     Args:
         filter_id: Filter ID
     """
-    return jira_filter_delete(filter_id=filter_id)  # pragma: no cover
+    return _impl_filter_delete(filter_id=filter_id)  # pragma: no cover
 
 
 # --- Workflow Tools ---
 
 
 @mcp.tool()
-def jira_workflow_get_transitions_tool(issue_key: str) -> Dict[str, Any]:
+def jira_workflow_get_transitions(issue_key: str) -> Dict[str, Any]:
     """Get available workflow transitions for an issue.
 
     Args:
         issue_key: Issue key (e.g., "PROJ-123")
     """
-    return jira_workflow_get_transitions(issue_key=issue_key)  # pragma: no cover
+    return _impl_workflow_get_transitions(issue_key=issue_key)  # pragma: no cover
 
 
 @mcp.tool()
-def jira_workflow_transition_tool(
+def jira_workflow_transition(
     issue_key: str, transition_id: str, fields: Dict[str, Any] | None = None
 ) -> Dict[str, Any]:
     """Transition an issue through workflow.
@@ -417,7 +487,7 @@ def jira_workflow_transition_tool(
         transition_id: Transition ID (use get_transitions to find valid IDs)
         fields: Optional fields required by the transition
     """
-    return jira_workflow_transition(  # pragma: no cover
+    return _impl_workflow_transition(  # pragma: no cover
         issue_key=issue_key, transition_id=transition_id, fields=fields
     )
 
@@ -426,29 +496,29 @@ def jira_workflow_transition_tool(
 
 
 @mcp.tool()
-def jira_comment_add_tool(issue_key: str, body: str) -> Dict[str, Any]:
+def jira_comment_add(issue_key: str, body: str) -> Dict[str, Any]:
     """Add a comment to an issue.
 
     Args:
         issue_key: Issue key (e.g., "PROJ-123")
         body: Comment text (supports Jira markup)
     """
-    return jira_comment_add(issue_key=issue_key, body=body)  # pragma: no cover
+    return _impl_comment_add(issue_key=issue_key, body=body)  # pragma: no cover
 
 
 @mcp.tool()
-def jira_comment_list_tool(issue_key: str, detail: str | None = None) -> Dict[str, Any]:
+def jira_comment_list(issue_key: str, detail: str | None = None) -> Dict[str, Any]:
     """List all comments on an issue.
 
     Args:
         issue_key: Issue key (e.g., "PROJ-123")
         detail: Response detail level: 'summary' (default) or 'full'
     """
-    return jira_comment_list(issue_key=issue_key, detail=detail)  # pragma: no cover
+    return _impl_comment_list(issue_key=issue_key, detail=detail)  # pragma: no cover
 
 
 @mcp.tool()
-def jira_comment_update_tool(issue_key: str, comment_id: str, body: str) -> Dict[str, Any]:
+def jira_comment_update(issue_key: str, comment_id: str, body: str) -> Dict[str, Any]:
     """Update an existing comment.
 
     Args:
@@ -456,107 +526,107 @@ def jira_comment_update_tool(issue_key: str, comment_id: str, body: str) -> Dict
         comment_id: Comment ID to update
         body: New comment text
     """
-    return jira_comment_update(  # pragma: no cover
+    return _impl_comment_update(  # pragma: no cover
         issue_key=issue_key, comment_id=comment_id, body=body
     )
 
 
 @mcp.tool()
-def jira_comment_delete_tool(issue_key: str, comment_id: str) -> Dict[str, Any]:
+def jira_comment_delete(issue_key: str, comment_id: str) -> Dict[str, Any]:
     """Delete a comment.
 
     Args:
         issue_key: Issue key (e.g., "PROJ-123")
         comment_id: Comment ID to delete
     """
-    return jira_comment_delete(issue_key=issue_key, comment_id=comment_id)  # pragma: no cover
+    return _impl_comment_delete(issue_key=issue_key, comment_id=comment_id)  # pragma: no cover
 
 
 # --- Project Tools ---
 
 
 @mcp.tool()
-def jira_project_list_tool(detail: str | None = None) -> List[Dict[str, Any]]:
+def jira_project_list(detail: str | None = None) -> List[Dict[str, Any]]:
     """List all accessible Jira projects.
 
     Args:
         detail: Response detail level: 'summary' (default) or 'full'
     """
-    return jira_project_list(detail=detail)  # pragma: no cover
+    return _impl_project_list(detail=detail)  # pragma: no cover
 
 
 @mcp.tool()
-def jira_project_get_tool(project_key: str, detail: str | None = None) -> Dict[str, Any]:
+def jira_project_get(project_key: str, detail: str | None = None) -> Dict[str, Any]:
     """Get project details.
 
     Args:
         project_key: Project key (e.g., "PROJ")
         detail: Response detail level: 'summary' (default) or 'full'
     """
-    return jira_project_get(project_key=project_key, detail=detail)  # pragma: no cover
+    return _impl_project_get(project_key=project_key, detail=detail)  # pragma: no cover
 
 
 @mcp.tool()
-def jira_project_issue_types_tool(project_key: str) -> List[Dict[str, Any]]:
+def jira_project_issue_types(project_key: str) -> List[Dict[str, Any]]:
     """Get available issue types for a project.
 
     Args:
         project_key: Project key (e.g., "PROJ")
     """
-    return jira_project_issue_types(project_key=project_key)  # pragma: no cover
+    return _impl_project_issue_types(project_key=project_key)  # pragma: no cover
 
 
 # --- Board Tools ---
 
 
 @mcp.tool()
-def jira_board_list_tool(project_key: str | None = None) -> Dict[str, Any]:
+def jira_board_list(project_key: str | None = None) -> Dict[str, Any]:
     """List agile boards, optionally filtered by project.
 
     Args:
         project_key: Optional project key to filter boards
     """
-    return jira_board_list(project_key=project_key)  # pragma: no cover
+    return _impl_board_list(project_key=project_key)  # pragma: no cover
 
 
 @mcp.tool()
-def jira_board_get_tool(board_id: str, detail: str | None = None) -> Dict[str, Any]:
+def jira_board_get(board_id: str, detail: str | None = None) -> Dict[str, Any]:
     """Get board details.
 
     Args:
         board_id: Board ID
         detail: Response detail level: 'summary' (default) or 'full'
     """
-    return jira_board_get(board_id=board_id, detail=detail)  # pragma: no cover
+    return _impl_board_get(board_id=board_id, detail=detail)  # pragma: no cover
 
 
 # --- Sprint Tools ---
 
 
 @mcp.tool()
-def jira_sprint_list_tool(board_id: str, state: str | None = None) -> Dict[str, Any]:
+def jira_sprint_list(board_id: str, state: str | None = None) -> Dict[str, Any]:
     """List sprints for a board, optionally filtered by state.
 
     Args:
         board_id: Board ID
         state: Sprint state filter (active, closed, future)
     """
-    return jira_sprint_list(board_id=board_id, state=state)  # pragma: no cover
+    return _impl_sprint_list(board_id=board_id, state=state)  # pragma: no cover
 
 
 @mcp.tool()
-def jira_sprint_get_tool(sprint_id: str, detail: str | None = None) -> Dict[str, Any]:
+def jira_sprint_get(sprint_id: str, detail: str | None = None) -> Dict[str, Any]:
     """Get sprint details.
 
     Args:
         sprint_id: Sprint ID
         detail: Response detail level: 'summary' (default) or 'full'
     """
-    return jira_sprint_get(sprint_id=sprint_id, detail=detail)  # pragma: no cover
+    return _impl_sprint_get(sprint_id=sprint_id, detail=detail)  # pragma: no cover
 
 
 @mcp.tool()
-def jira_sprint_issues_tool(
+def jira_sprint_issues(
     sprint_id: str, max_results: int = 50, start_at: int = 0, detail: str | None = None
 ) -> Dict[str, Any]:
     """Get issues in a sprint.
@@ -567,37 +637,37 @@ def jira_sprint_issues_tool(
         start_at: Starting offset for pagination
         detail: Response detail level: 'summary' (default) or 'full'
     """
-    return jira_sprint_issues(  # pragma: no cover
+    return _impl_sprint_issues(  # pragma: no cover
         sprint_id=sprint_id, max_results=max_results, start_at=start_at, detail=detail
     )
 
 
 @mcp.tool()
-def jira_sprint_add_issues_tool(sprint_id: str, issue_keys: List[str]) -> Dict[str, Any]:
+def jira_sprint_add_issues(sprint_id: str, issue_keys: List[str]) -> Dict[str, Any]:
     """Add issues to a sprint. Moves issues from backlog or another sprint into the specified sprint.
 
     Args:
         sprint_id: Sprint ID (numeric)
         issue_keys: List of issue keys to add (e.g., ["PROJ-1", "PROJ-2"])
     """
-    return jira_sprint_add_issues(sprint_id=sprint_id, issue_keys=issue_keys)  # pragma: no cover
+    return _impl_sprint_add_issues(sprint_id=sprint_id, issue_keys=issue_keys)  # pragma: no cover
 
 
 @mcp.tool()
-def jira_sprint_remove_issues_tool(issue_keys: List[str]) -> Dict[str, Any]:
+def jira_sprint_remove_issues(issue_keys: List[str]) -> Dict[str, Any]:
     """Remove issues from their current sprint and move them back to the backlog.
 
     Args:
         issue_keys: List of issue keys to move to backlog (e.g., ["PROJ-1", "PROJ-2"])
     """
-    return jira_sprint_remove_issues(issue_keys=issue_keys)  # pragma: no cover
+    return _impl_sprint_remove_issues(issue_keys=issue_keys)  # pragma: no cover
 
 
 # --- User Tools ---
 
 
 @mcp.tool()
-def jira_user_search_tool(query: str, max_results: int = 50, detail: str | None = None) -> List[Dict[str, Any]]:
+def jira_user_search(query: str, max_results: int = 50, detail: str | None = None) -> List[Dict[str, Any]]:
     """Search for Jira users.
 
     Args:
@@ -605,35 +675,35 @@ def jira_user_search_tool(query: str, max_results: int = 50, detail: str | None 
         max_results: Maximum results (default: 50)
         detail: Response detail level: 'summary' (default) or 'full'
     """
-    return jira_user_search(query=query, max_results=max_results, detail=detail)  # pragma: no cover
+    return _impl_user_search(query=query, max_results=max_results, detail=detail)  # pragma: no cover
 
 
 @mcp.tool()
-def jira_user_get_tool(username: str, detail: str | None = None) -> Dict[str, Any]:
+def jira_user_get(username: str, detail: str | None = None) -> Dict[str, Any]:
     """Get user details.
 
     Args:
         username: Username to look up
         detail: Response detail level: 'summary' (default) or 'full'
     """
-    return jira_user_get(username=username, detail=detail)  # pragma: no cover
+    return _impl_user_get(username=username, detail=detail)  # pragma: no cover
 
 
 @mcp.tool()
-def jira_user_myself_tool(detail: str | None = None) -> Dict[str, Any]:
+def jira_user_myself(detail: str | None = None) -> Dict[str, Any]:
     """Get current authenticated user details.
 
     Args:
         detail: Response detail level: 'summary' (default) or 'full'
     """
-    return jira_user_myself(detail=detail)  # pragma: no cover
+    return _impl_user_myself(detail=detail)  # pragma: no cover
 
 
 # --- Attachment Tools ---
 
 
 @mcp.tool()
-def jira_attachment_add_tool(
+def jira_attachment_add(
     issue_key: str, file_path: str, filename: str | None = None
 ) -> List[Dict[str, Any]]:
     """Add an attachment to an issue.
@@ -643,42 +713,42 @@ def jira_attachment_add_tool(
         file_path: Local file path to attach
         filename: Optional custom filename
     """
-    return jira_attachment_add(  # pragma: no cover
+    return _impl_attachment_add(  # pragma: no cover
         issue_key=issue_key, file_path=file_path, filename=filename
     )
 
 
 @mcp.tool()
-def jira_attachment_get_tool(attachment_id: str) -> Dict[str, Any]:
+def jira_attachment_get(attachment_id: str) -> Dict[str, Any]:
     """Get attachment metadata.
 
     Args:
         attachment_id: Attachment ID
     """
-    return jira_attachment_get(attachment_id=attachment_id)  # pragma: no cover
+    return _impl_attachment_get(attachment_id=attachment_id)  # pragma: no cover
 
 
 @mcp.tool()
-def jira_attachment_delete_tool(attachment_id: str) -> Dict[str, Any]:
+def jira_attachment_delete(attachment_id: str) -> Dict[str, Any]:
     """Delete an attachment.
 
     Args:
         attachment_id: Attachment ID
     """
-    return jira_attachment_delete(attachment_id=attachment_id)  # pragma: no cover
+    return _impl_attachment_delete(attachment_id=attachment_id)  # pragma: no cover
 
 
 # --- Priority & Status Tools ---
 
 
 @mcp.tool()
-def jira_priority_list_tool() -> List[Dict[str, Any]]:  # pragma: no cover
+def jira_priority_list() -> List[Dict[str, Any]]:  # pragma: no cover
     """List all available Jira priorities."""
     return _get_client().list_priorities()  # pragma: no cover
 
 
 @mcp.tool()
-def jira_status_list_tool() -> List[Dict[str, Any]]:  # pragma: no cover
+def jira_status_list() -> List[Dict[str, Any]]:  # pragma: no cover
     """List all available Jira statuses."""
     return _get_client().list_statuses()  # pragma: no cover
 
