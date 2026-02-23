@@ -374,6 +374,7 @@ class BitbucketClient:
         source_branch: str,
         target_branch: str,
         description: str = "",
+        reviewers: List[str] | None = None,
     ) -> Dict[str, Any]:
         if self._auth_type == AuthType.CLOUD:
             url = f"{self._cloud_repo_url(repo)}/pullrequests"
@@ -384,6 +385,8 @@ class BitbucketClient:
             }
             if description:
                 payload["description"] = description
+            if reviewers:
+                payload["reviewers"] = [{"uuid": u} for u in reviewers]
         else:
             url = f"{self._dc_project_repo_url(project, repo)}/pull-requests"
             payload = {
@@ -393,6 +396,8 @@ class BitbucketClient:
             }
             if description:
                 payload["description"] = description
+            if reviewers:
+                payload["reviewers"] = [{"user": {"name": u}} for u in reviewers]
         try:
             response = self._request("POST", url, json=payload)
             if response.status_code not in (200, 201):
@@ -617,6 +622,53 @@ class BitbucketClient:
             return response.json()  # type: ignore[no-any-return]
         except httpx.TimeoutException:
             raise ValueError(f"Timeout marking PR {pr_id} needs work")
+
+    # PR Reviewer operations
+
+    def get_pr_reviewers(self, project: str, repo: str, pr_id: int) -> Dict[str, Any]:
+        pr = self.get_pr(project, repo, pr_id)
+        reviewers = pr.get("reviewers", [])
+        return {"reviewers": reviewers}
+
+    def add_pr_reviewer(self, project: str, repo: str, pr_id: int, username: str) -> Dict[str, Any]:
+        pr = self.get_pr(project, repo, pr_id)
+        existing_reviewers = pr.get("reviewers", [])
+        if self._auth_type == AuthType.CLOUD:
+            url = f"{self._cloud_repo_url(repo)}/pullrequests/{pr_id}"
+            new_reviewer: Dict[str, Any] = {"uuid": username}
+            updated_reviewers = existing_reviewers + [new_reviewer]
+            payload: Dict[str, Any] = {"reviewers": updated_reviewers}
+        else:
+            url = f"{self._dc_project_repo_url(project, repo)}/pull-requests/{pr_id}"
+            new_reviewer = {"user": {"name": username}}
+            updated_reviewers = existing_reviewers + [new_reviewer]
+            payload = {"reviewers": updated_reviewers, "version": pr.get("version", 0)}
+        try:
+            response = self._request("PUT", url, json=payload)
+            if response.status_code != 200:
+                self._handle_error(response)
+            return response.json()  # type: ignore[no-any-return]
+        except httpx.TimeoutException:
+            raise ValueError(f"Timeout adding reviewer to PR {pr_id}")
+
+    def remove_pr_reviewer(self, project: str, repo: str, pr_id: int, username: str) -> Dict[str, Any]:
+        pr = self.get_pr(project, repo, pr_id)
+        existing_reviewers = pr.get("reviewers", [])
+        if self._auth_type == AuthType.CLOUD:
+            url = f"{self._cloud_repo_url(repo)}/pullrequests/{pr_id}"
+            filtered = [r for r in existing_reviewers if r.get("uuid") != username]
+            payload: Dict[str, Any] = {"reviewers": filtered}
+        else:
+            url = f"{self._dc_project_repo_url(project, repo)}/pull-requests/{pr_id}"
+            filtered = [r for r in existing_reviewers if r.get("user", {}).get("name") != username]
+            payload = {"reviewers": filtered, "version": pr.get("version", 0)}
+        try:
+            response = self._request("PUT", url, json=payload)
+            if response.status_code != 200:
+                self._handle_error(response)
+            return response.json()  # type: ignore[no-any-return]
+        except httpx.TimeoutException:
+            raise ValueError(f"Timeout removing reviewer from PR {pr_id}")
 
     # File operations
 

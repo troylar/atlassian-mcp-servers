@@ -257,7 +257,13 @@ def bitbucket_pr_get(project: str, repo: str, pr_id: int) -> Dict[str, Any]:  # 
 
 @mcp.tool()
 def bitbucket_pr_create(
-    project: str, repo: str, title: str, source_branch: str, target_branch: str, description: str = ""
+    project: str,
+    repo: str,
+    title: str,
+    source_branch: str,
+    target_branch: str,
+    description: str = "",
+    reviewers: List[str] | None = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """Create a pull request.
 
@@ -268,8 +274,11 @@ def bitbucket_pr_create(
         source_branch: Source branch name
         target_branch: Target branch name
         description: Optional PR description
+        reviewers: Optional list of reviewer usernames (UUIDs for Cloud, usernames for DC)
     """
-    return _get_client().create_pr(project, repo, title, source_branch, target_branch, description)  # pragma: no cover
+    return _get_client().create_pr(  # pragma: no cover
+        project, repo, title, source_branch, target_branch, description, reviewers
+    )
 
 
 @mcp.tool()
@@ -464,6 +473,49 @@ def bitbucket_pr_needs_work(project: str, repo: str, pr_id: int) -> Dict[str, An
         pr_id: PR ID
     """
     return _get_client().needs_work_pr(project, repo, pr_id)  # pragma: no cover
+
+
+# --- PR Reviewer Tools (3 tools) ---
+
+
+@mcp.tool()
+def bitbucket_pr_reviewer_list(project: str, repo: str, pr_id: int) -> Dict[str, Any]:  # pragma: no cover
+    """List reviewers on a pull request.
+
+    Args:
+        project: Project key
+        repo: Repository slug
+        pr_id: PR ID
+    """
+    return _get_client().get_pr_reviewers(project, repo, pr_id)  # pragma: no cover
+
+
+@mcp.tool()
+def bitbucket_pr_reviewer_add(project: str, repo: str, pr_id: int, username: str) -> Dict[str, Any]:  # pragma: no cover
+    """Add a reviewer to a pull request.
+
+    Args:
+        project: Project key
+        repo: Repository slug
+        pr_id: PR ID
+        username: Reviewer username (UUID for Cloud, username for Data Center)
+    """
+    return _get_client().add_pr_reviewer(project, repo, pr_id, username)  # pragma: no cover
+
+
+@mcp.tool()
+def bitbucket_pr_reviewer_remove(  # pragma: no cover
+    project: str, repo: str, pr_id: int, username: str
+) -> Dict[str, Any]:  # pragma: no cover
+    """Remove a reviewer from a pull request.
+
+    Args:
+        project: Project key
+        repo: Repository slug
+        pr_id: PR ID
+        username: Reviewer username to remove
+    """
+    return _get_client().remove_pr_reviewer(project, repo, pr_id, username)  # pragma: no cover
 
 
 # --- File Tools (2 tools) ---

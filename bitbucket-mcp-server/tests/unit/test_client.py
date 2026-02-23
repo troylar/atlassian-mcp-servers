@@ -654,6 +654,23 @@ class TestPROperations:
             with pytest.raises(ValueError, match="Conflict"):
                 dc_client.create_pr("PROJ", "repo", "t", "f", "m")
 
+    def test_create_pr_dc_with_reviewers(self, dc_client: BitbucketClient) -> None:
+        with patch.object(dc_client, "_request", return_value=_mock_response(201, {"id": 1})) as mock_req:
+            dc_client.create_pr("PROJ", "repo", "title", "feature", "main", reviewers=["alice", "bob"])
+        payload = mock_req.call_args.kwargs["json"]
+        assert payload["reviewers"] == [{"user": {"name": "alice"}}, {"user": {"name": "bob"}}]
+
+    def test_create_pr_cloud_with_reviewers(self, cloud_client: BitbucketClient) -> None:
+        with patch.object(cloud_client, "_request", return_value=_mock_response(201, {"id": 1})) as mock_req:
+            cloud_client.create_pr("ignored", "repo", "title", "feature", "main", reviewers=["{uuid-1}"])
+        payload = mock_req.call_args.kwargs["json"]
+        assert payload["reviewers"] == [{"uuid": "{uuid-1}"}]
+
+    def test_create_pr_dc_no_reviewers(self, dc_client: BitbucketClient) -> None:
+        with patch.object(dc_client, "_request", return_value=_mock_response(201, {})) as mock_req:
+            dc_client.create_pr("PROJ", "repo", "t", "f", "m")
+        assert "reviewers" not in mock_req.call_args.kwargs["json"]
+
     # --- update_pr ---
     def test_update_pr_dc(self, dc_client: BitbucketClient) -> None:
         pr_data = {"id": 1, "version": 3}
@@ -1042,6 +1059,139 @@ class TestPRReviewOperations:
         with patch.object(dc_client, "_request", return_value=_mock_response(404)):
             with pytest.raises(ValueError, match="Resource not found"):
                 dc_client.needs_work_pr("PROJ", "repo", 1)
+
+
+# ---------------------------------------------------------------------------
+# PR Reviewer operations
+# ---------------------------------------------------------------------------
+
+
+class TestPRReviewerOperations:
+    # --- get_pr_reviewers ---
+
+    def test_get_pr_reviewers_dc(self, dc_client: BitbucketClient) -> None:
+        pr_data = {"id": 1, "reviewers": [{"user": {"name": "alice"}}, {"user": {"name": "bob"}}]}
+        with patch.object(dc_client, "_request", return_value=_mock_response(200, pr_data)):
+            result = dc_client.get_pr_reviewers("PROJ", "repo", 1)
+        assert len(result["reviewers"]) == 2
+        assert result["reviewers"][0]["user"]["name"] == "alice"
+
+    def test_get_pr_reviewers_cloud(self, cloud_client: BitbucketClient) -> None:
+        pr_data = {"id": 1, "reviewers": [{"uuid": "{uuid-1}", "display_name": "Alice"}]}
+        with patch.object(cloud_client, "_request", return_value=_mock_response(200, pr_data)):
+            result = cloud_client.get_pr_reviewers("ignored", "repo", 1)
+        assert len(result["reviewers"]) == 1
+        assert result["reviewers"][0]["uuid"] == "{uuid-1}"
+
+    def test_get_pr_reviewers_empty(self, dc_client: BitbucketClient) -> None:
+        pr_data = {"id": 1, "reviewers": []}
+        with patch.object(dc_client, "_request", return_value=_mock_response(200, pr_data)):
+            result = dc_client.get_pr_reviewers("PROJ", "repo", 1)
+        assert result["reviewers"] == []
+
+    def test_get_pr_reviewers_no_key(self, dc_client: BitbucketClient) -> None:
+        pr_data = {"id": 1}
+        with patch.object(dc_client, "_request", return_value=_mock_response(200, pr_data)):
+            result = dc_client.get_pr_reviewers("PROJ", "repo", 1)
+        assert result["reviewers"] == []
+
+    # --- add_pr_reviewer ---
+
+    def test_add_pr_reviewer_dc(self, dc_client: BitbucketClient) -> None:
+        pr_data = {"id": 1, "version": 5, "reviewers": [{"user": {"name": "alice"}}]}
+        updated = {"id": 1, "version": 6, "reviewers": [{"user": {"name": "alice"}}, {"user": {"name": "bob"}}]}
+        with patch.object(dc_client, "_request") as mock_req:
+            mock_req.side_effect = [_mock_response(200, pr_data), _mock_response(200, updated)]
+            result = dc_client.add_pr_reviewer("PROJ", "repo", 1, "bob")
+        assert result == updated
+        put_payload = mock_req.call_args_list[1].kwargs["json"]
+        assert put_payload["version"] == 5
+        assert len(put_payload["reviewers"]) == 2
+        assert put_payload["reviewers"][1]["user"]["name"] == "bob"
+
+    def test_add_pr_reviewer_cloud(self, cloud_client: BitbucketClient) -> None:
+        pr_data = {"id": 1, "reviewers": [{"uuid": "{uuid-1}"}]}
+        updated = {"id": 1, "reviewers": [{"uuid": "{uuid-1}"}, {"uuid": "{uuid-2}"}]}
+        with patch.object(cloud_client, "_request") as mock_req:
+            mock_req.side_effect = [_mock_response(200, pr_data), _mock_response(200, updated)]
+            result = cloud_client.add_pr_reviewer("ignored", "repo", 1, "{uuid-2}")
+        assert result == updated
+        put_payload = mock_req.call_args_list[1].kwargs["json"]
+        assert "version" not in put_payload
+        assert put_payload["reviewers"][1]["uuid"] == "{uuid-2}"
+
+    def test_add_pr_reviewer_to_empty(self, dc_client: BitbucketClient) -> None:
+        pr_data = {"id": 1, "version": 0, "reviewers": []}
+        updated = {"id": 1, "version": 1, "reviewers": [{"user": {"name": "alice"}}]}
+        with patch.object(dc_client, "_request") as mock_req:
+            mock_req.side_effect = [_mock_response(200, pr_data), _mock_response(200, updated)]
+            result = dc_client.add_pr_reviewer("PROJ", "repo", 1, "alice")
+        assert len(result["reviewers"]) == 1
+
+    def test_add_pr_reviewer_timeout(self, dc_client: BitbucketClient) -> None:
+        pr_data = {"id": 1, "version": 0, "reviewers": []}
+        with patch.object(dc_client, "_request") as mock_req:
+            mock_req.side_effect = [_mock_response(200, pr_data), httpx.TimeoutException("t")]
+            with pytest.raises(ValueError, match="Timeout adding reviewer to PR"):
+                dc_client.add_pr_reviewer("PROJ", "repo", 1, "alice")
+
+    def test_add_pr_reviewer_error(self, dc_client: BitbucketClient) -> None:
+        pr_data = {"id": 1, "version": 0, "reviewers": []}
+        with patch.object(dc_client, "_request") as mock_req:
+            mock_req.side_effect = [_mock_response(200, pr_data), _mock_response(404)]
+            with pytest.raises(ValueError, match="Resource not found"):
+                dc_client.add_pr_reviewer("PROJ", "repo", 1, "alice")
+
+    # --- remove_pr_reviewer ---
+
+    def test_remove_pr_reviewer_dc(self, dc_client: BitbucketClient) -> None:
+        pr_data = {
+            "id": 1, "version": 3,
+            "reviewers": [{"user": {"name": "alice"}}, {"user": {"name": "bob"}}],
+        }
+        updated = {"id": 1, "version": 4, "reviewers": [{"user": {"name": "bob"}}]}
+        with patch.object(dc_client, "_request") as mock_req:
+            mock_req.side_effect = [_mock_response(200, pr_data), _mock_response(200, updated)]
+            result = dc_client.remove_pr_reviewer("PROJ", "repo", 1, "alice")
+        assert result == updated
+        put_payload = mock_req.call_args_list[1].kwargs["json"]
+        assert put_payload["version"] == 3
+        assert len(put_payload["reviewers"]) == 1
+        assert put_payload["reviewers"][0]["user"]["name"] == "bob"
+
+    def test_remove_pr_reviewer_cloud(self, cloud_client: BitbucketClient) -> None:
+        pr_data = {"id": 1, "reviewers": [{"uuid": "{uuid-1}"}, {"uuid": "{uuid-2}"}]}
+        updated = {"id": 1, "reviewers": [{"uuid": "{uuid-2}"}]}
+        with patch.object(cloud_client, "_request") as mock_req:
+            mock_req.side_effect = [_mock_response(200, pr_data), _mock_response(200, updated)]
+            result = cloud_client.remove_pr_reviewer("ignored", "repo", 1, "{uuid-1}")
+        assert result == updated
+        put_payload = mock_req.call_args_list[1].kwargs["json"]
+        assert len(put_payload["reviewers"]) == 1
+        assert put_payload["reviewers"][0]["uuid"] == "{uuid-2}"
+
+    def test_remove_pr_reviewer_not_found(self, dc_client: BitbucketClient) -> None:
+        pr_data = {"id": 1, "version": 0, "reviewers": [{"user": {"name": "alice"}}]}
+        updated = {"id": 1, "version": 1, "reviewers": [{"user": {"name": "alice"}}]}
+        with patch.object(dc_client, "_request") as mock_req:
+            mock_req.side_effect = [_mock_response(200, pr_data), _mock_response(200, updated)]
+            dc_client.remove_pr_reviewer("PROJ", "repo", 1, "nonexistent")
+        put_payload = mock_req.call_args_list[1].kwargs["json"]
+        assert len(put_payload["reviewers"]) == 1
+
+    def test_remove_pr_reviewer_timeout(self, dc_client: BitbucketClient) -> None:
+        pr_data = {"id": 1, "version": 0, "reviewers": [{"user": {"name": "alice"}}]}
+        with patch.object(dc_client, "_request") as mock_req:
+            mock_req.side_effect = [_mock_response(200, pr_data), httpx.TimeoutException("t")]
+            with pytest.raises(ValueError, match="Timeout removing reviewer from PR"):
+                dc_client.remove_pr_reviewer("PROJ", "repo", 1, "alice")
+
+    def test_remove_pr_reviewer_error(self, dc_client: BitbucketClient) -> None:
+        pr_data = {"id": 1, "version": 0, "reviewers": [{"user": {"name": "alice"}}]}
+        with patch.object(dc_client, "_request") as mock_req:
+            mock_req.side_effect = [_mock_response(200, pr_data), _mock_response(409, text="conflict")]
+            with pytest.raises(ValueError, match="Conflict"):
+                dc_client.remove_pr_reviewer("PROJ", "repo", 1, "alice")
 
 
 # ---------------------------------------------------------------------------
