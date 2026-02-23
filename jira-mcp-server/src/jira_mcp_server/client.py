@@ -603,6 +603,56 @@ class JiraClient:
         except httpx.TimeoutException:
             raise ValueError(f"Timeout deleting attachment {attachment_id}")
 
+    def download_attachment(self, attachment_id: str, max_size: int = 10 * 1024 * 1024) -> Dict[str, Any]:
+        metadata = self.get_attachment(attachment_id)
+        content_url = metadata.get("content")
+        if not content_url:
+            raise ValueError(f"No download URL found for attachment {attachment_id}")
+        filename = metadata.get("filename", "unknown")
+        mime_type = metadata.get("mimeType", "application/octet-stream")
+        size = metadata.get("size", 0)
+        if isinstance(size, str):
+            size = int(size)
+        if size > max_size:
+            raise ValueError(
+                f"Attachment {filename} is {size} bytes, exceeds {max_size} byte limit"
+            )
+        headers = self._get_headers()
+        headers.pop("Content-Type", None)
+        logger.debug("-> GET %s (download)", content_url)
+        start = time.monotonic()
+        try:
+            with httpx.Client(timeout=self.timeout, verify=self.verify_ssl) as client:
+                response = client.get(content_url, headers=headers)
+                elapsed_ms = (time.monotonic() - start) * 1000
+                logger.debug("<- %s GET %s (%.0fms)", response.status_code, content_url, elapsed_ms)
+                if response.status_code != 200:
+                    self._handle_error(response)
+                actual_size = len(response.content)
+                if actual_size > max_size:
+                    raise ValueError(
+                        f"Attachment {filename} is {actual_size} bytes, exceeds {max_size} byte limit"
+                    )
+                is_text = mime_type.startswith("text/") or mime_type in (
+                    "application/json", "application/xml", "application/javascript",
+                    "application/x-yaml", "application/yaml",
+                )
+                if is_text:
+                    content = response.content.decode("utf-8", errors="replace")
+                    encoding = "text"
+                else:
+                    content = base64.b64encode(response.content).decode("ascii")
+                    encoding = "base64"
+                return {
+                    "content": content,
+                    "encoding": encoding,
+                    "filename": filename,
+                    "size": actual_size,
+                    "mime_type": mime_type,
+                }
+        except httpx.TimeoutException:
+            raise ValueError(f"Timeout downloading attachment {attachment_id}")
+
     # Worklog operations
 
     def add_worklog(

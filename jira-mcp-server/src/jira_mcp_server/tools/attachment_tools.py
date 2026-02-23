@@ -46,3 +46,17 @@ def jira_attachment_delete(attachment_id: str) -> Dict[str, Any]:
         return {"success": True, "message": f"Attachment {attachment_id} deleted successfully"}
     except Exception as e:
         raise ValueError(f"Delete attachment failed: {str(e)}")
+
+
+def jira_attachment_download(attachment_id: str, max_size: int | None = None) -> Dict[str, Any]:
+    if not _client:
+        raise RuntimeError("Attachment tools not initialized")
+    if not attachment_id or not attachment_id.strip():
+        raise ValueError("Attachment ID cannot be empty")
+    try:
+        kwargs: Dict[str, Any] = {}
+        if max_size is not None:
+            kwargs["max_size"] = max_size
+        return _client.download_attachment(attachment_id, **kwargs)
+    except Exception as e:
+        raise ValueError(f"Download attachment failed: {str(e)}")

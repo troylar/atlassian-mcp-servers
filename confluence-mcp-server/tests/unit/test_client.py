@@ -906,6 +906,209 @@ class TestDeleteAttachment:
                 client.delete_attachment("att1")
 
 
+class TestDownloadAttachment:
+    def test_download_text_file(self) -> None:
+        config = _make_config(auth_type=AuthType.PAT)
+        client = ConfluenceClient(config)
+        metadata = {
+            "id": "att1",
+            "title": "readme.txt",
+            "extensions": {"mediaType": "text/plain", "fileSize": 13},
+            "_links": {"download": "/download/attachments/123/readme.txt"},
+        }
+        mock_meta_resp = _mock_response(200, metadata)
+        mock_download_resp = MagicMock(spec=httpx.Response)
+        mock_download_resp.status_code = 200
+        mock_download_resp.content = b"Hello, World!"
+        with patch.object(client, "_request", return_value=mock_meta_resp):
+            with patch("httpx.Client") as mock_client_cls:
+                mock_ctx = MagicMock()
+                mock_client_cls.return_value.__enter__ = MagicMock(return_value=mock_ctx)
+                mock_client_cls.return_value.__exit__ = MagicMock(return_value=False)
+                mock_ctx.get.return_value = mock_download_resp
+                result = client.download_attachment("att1")
+        assert result["content"] == "Hello, World!"
+        assert result["encoding"] == "text"
+        assert result["filename"] == "readme.txt"
+        assert result["size"] == 13
+        assert result["mime_type"] == "text/plain"
+
+    def test_download_binary_file(self) -> None:
+        config = _make_config(auth_type=AuthType.PAT)
+        client = ConfluenceClient(config)
+        metadata = {
+            "id": "att2",
+            "title": "image.png",
+            "extensions": {"mediaType": "image/png", "fileSize": 4},
+            "_links": {"download": "/download/attachments/123/image.png"},
+        }
+        mock_meta_resp = _mock_response(200, metadata)
+        mock_download_resp = MagicMock(spec=httpx.Response)
+        mock_download_resp.status_code = 200
+        mock_download_resp.content = b"\x89PNG"
+        with patch.object(client, "_request", return_value=mock_meta_resp):
+            with patch("httpx.Client") as mock_client_cls:
+                mock_ctx = MagicMock()
+                mock_client_cls.return_value.__enter__ = MagicMock(return_value=mock_ctx)
+                mock_client_cls.return_value.__exit__ = MagicMock(return_value=False)
+                mock_ctx.get.return_value = mock_download_resp
+                result = client.download_attachment("att2")
+        assert result["content"] == base64.b64encode(b"\x89PNG").decode("ascii")
+        assert result["encoding"] == "base64"
+        assert result["mime_type"] == "image/png"
+
+    def test_download_json_is_text(self) -> None:
+        config = _make_config(auth_type=AuthType.PAT)
+        client = ConfluenceClient(config)
+        metadata = {
+            "id": "att3",
+            "title": "data.json",
+            "extensions": {"mediaType": "application/json", "fileSize": 2},
+            "_links": {"download": "/download/attachments/123/data.json"},
+        }
+        mock_meta_resp = _mock_response(200, metadata)
+        mock_download_resp = MagicMock(spec=httpx.Response)
+        mock_download_resp.status_code = 200
+        mock_download_resp.content = b"{}"
+        with patch.object(client, "_request", return_value=mock_meta_resp):
+            with patch("httpx.Client") as mock_client_cls:
+                mock_ctx = MagicMock()
+                mock_client_cls.return_value.__enter__ = MagicMock(return_value=mock_ctx)
+                mock_client_cls.return_value.__exit__ = MagicMock(return_value=False)
+                mock_ctx.get.return_value = mock_download_resp
+                result = client.download_attachment("att3")
+        assert result["encoding"] == "text"
+
+    def test_download_no_download_link(self) -> None:
+        config = _make_config(auth_type=AuthType.PAT)
+        client = ConfluenceClient(config)
+        metadata = {"id": "att1", "title": "test.txt", "extensions": {}, "_links": {}}
+        mock_meta_resp = _mock_response(200, metadata)
+        with patch.object(client, "_request", return_value=mock_meta_resp):
+            with pytest.raises(ValueError, match="No download URL found"):
+                client.download_attachment("att1")
+
+    def test_download_size_exceeds_limit_from_metadata(self) -> None:
+        config = _make_config(auth_type=AuthType.PAT)
+        client = ConfluenceClient(config)
+        metadata = {
+            "id": "att1",
+            "title": "huge.bin",
+            "extensions": {"mediaType": "application/octet-stream", "fileSize": 20_000_000},
+            "_links": {"download": "/download/attachments/123/huge.bin"},
+        }
+        mock_meta_resp = _mock_response(200, metadata)
+        with patch.object(client, "_request", return_value=mock_meta_resp):
+            with pytest.raises(ValueError, match="exceeds.*byte limit"):
+                client.download_attachment("att1")
+
+    def test_download_size_exceeds_limit_from_actual(self) -> None:
+        config = _make_config(auth_type=AuthType.PAT)
+        client = ConfluenceClient(config)
+        metadata = {
+            "id": "att1",
+            "title": "sneaky.bin",
+            "extensions": {"mediaType": "application/octet-stream", "fileSize": 100},
+            "_links": {"download": "/download/attachments/123/sneaky.bin"},
+        }
+        mock_meta_resp = _mock_response(200, metadata)
+        mock_download_resp = MagicMock(spec=httpx.Response)
+        mock_download_resp.status_code = 200
+        mock_download_resp.content = b"x" * 200
+        with patch.object(client, "_request", return_value=mock_meta_resp):
+            with patch("httpx.Client") as mock_client_cls:
+                mock_ctx = MagicMock()
+                mock_client_cls.return_value.__enter__ = MagicMock(return_value=mock_ctx)
+                mock_client_cls.return_value.__exit__ = MagicMock(return_value=False)
+                mock_ctx.get.return_value = mock_download_resp
+                with pytest.raises(ValueError, match="exceeds.*byte limit"):
+                    client.download_attachment("att1", max_size=150)
+
+    def test_download_error_response(self) -> None:
+        config = _make_config(auth_type=AuthType.PAT)
+        client = ConfluenceClient(config)
+        metadata = {
+            "id": "att1",
+            "title": "test.txt",
+            "extensions": {"mediaType": "text/plain", "fileSize": 5},
+            "_links": {"download": "/download/attachments/123/test.txt"},
+        }
+        mock_meta_resp = _mock_response(200, metadata)
+        mock_download_resp = _mock_response(403)
+        with patch.object(client, "_request", return_value=mock_meta_resp):
+            with patch("httpx.Client") as mock_client_cls:
+                mock_ctx = MagicMock()
+                mock_client_cls.return_value.__enter__ = MagicMock(return_value=mock_ctx)
+                mock_client_cls.return_value.__exit__ = MagicMock(return_value=False)
+                mock_ctx.get.return_value = mock_download_resp
+                with pytest.raises(ValueError, match="Permission denied"):
+                    client.download_attachment("att1")
+
+    def test_download_timeout(self) -> None:
+        config = _make_config(auth_type=AuthType.PAT)
+        client = ConfluenceClient(config)
+        metadata = {
+            "id": "att1",
+            "title": "test.txt",
+            "extensions": {"mediaType": "text/plain", "fileSize": 5},
+            "_links": {"download": "/download/attachments/123/test.txt"},
+        }
+        mock_meta_resp = _mock_response(200, metadata)
+        with patch.object(client, "_request", return_value=mock_meta_resp):
+            with patch("httpx.Client") as mock_client_cls:
+                mock_ctx = MagicMock()
+                mock_client_cls.return_value.__enter__ = MagicMock(return_value=mock_ctx)
+                mock_client_cls.return_value.__exit__ = MagicMock(return_value=False)
+                mock_ctx.get.side_effect = httpx.TimeoutException("timeout")
+                with pytest.raises(ValueError, match="Timeout downloading attachment"):
+                    client.download_attachment("att1")
+
+    def test_download_string_size_in_metadata(self) -> None:
+        config = _make_config(auth_type=AuthType.PAT)
+        client = ConfluenceClient(config)
+        metadata = {
+            "id": "att1",
+            "title": "test.txt",
+            "extensions": {"mediaType": "text/plain", "fileSize": "5"},
+            "_links": {"download": "/download/attachments/123/test.txt"},
+        }
+        mock_meta_resp = _mock_response(200, metadata)
+        mock_download_resp = MagicMock(spec=httpx.Response)
+        mock_download_resp.status_code = 200
+        mock_download_resp.content = b"hello"
+        with patch.object(client, "_request", return_value=mock_meta_resp):
+            with patch("httpx.Client") as mock_client_cls:
+                mock_ctx = MagicMock()
+                mock_client_cls.return_value.__enter__ = MagicMock(return_value=mock_ctx)
+                mock_client_cls.return_value.__exit__ = MagicMock(return_value=False)
+                mock_ctx.get.return_value = mock_download_resp
+                result = client.download_attachment("att1")
+        assert result["size"] == 5
+
+    def test_download_constructs_correct_url(self) -> None:
+        config = _make_config(url="https://confluence.example.com", auth_type=AuthType.PAT)
+        client = ConfluenceClient(config)
+        metadata = {
+            "id": "att1",
+            "title": "test.txt",
+            "extensions": {"mediaType": "text/plain", "fileSize": 5},
+            "_links": {"download": "/download/attachments/123/test.txt"},
+        }
+        mock_meta_resp = _mock_response(200, metadata)
+        mock_download_resp = MagicMock(spec=httpx.Response)
+        mock_download_resp.status_code = 200
+        mock_download_resp.content = b"hello"
+        with patch.object(client, "_request", return_value=mock_meta_resp):
+            with patch("httpx.Client") as mock_client_cls:
+                mock_ctx = MagicMock()
+                mock_client_cls.return_value.__enter__ = MagicMock(return_value=mock_ctx)
+                mock_client_cls.return_value.__exit__ = MagicMock(return_value=False)
+                mock_ctx.get.return_value = mock_download_resp
+                client.download_attachment("att1")
+        call_args = mock_ctx.get.call_args
+        assert call_args[0][0] == "https://confluence.example.com/download/attachments/123/test.txt"
+
+
 class TestAddLabel:
     def test_success(self) -> None:
         config = _make_config(auth_type=AuthType.PAT)

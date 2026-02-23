@@ -460,6 +460,25 @@ def confluence_attachment_delete(attachment_id: str) -> Dict[str, Any]:  # pragm
     return {"success": True, "message": f"Attachment {attachment_id} deleted"}  # pragma: no cover
 
 
+@mcp.tool()
+def confluence_attachment_download(  # pragma: no cover
+    attachment_id: str, max_size: int | None = None,
+) -> Dict[str, Any]:
+    """Download attachment content.
+
+    Returns text content directly for text files, or base64-encoded content for binary files.
+    Default max size is 10MB.
+
+    Args:
+        attachment_id: Attachment ID
+        max_size: Optional max size in bytes (default 10MB)
+    """
+    kwargs: Dict[str, Any] = {}  # pragma: no cover
+    if max_size is not None:  # pragma: no cover
+        kwargs["max_size"] = max_size  # pragma: no cover
+    return _get_client().download_attachment(attachment_id, **kwargs)  # pragma: no cover
+
+
 # --- Label Tools (3 tools) ---
 
 
