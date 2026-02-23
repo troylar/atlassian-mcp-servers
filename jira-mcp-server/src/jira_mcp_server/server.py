@@ -87,6 +87,9 @@ from jira_mcp_server.tools.issue_tools import (
 from jira_mcp_server.tools.issue_tools import (
     jira_issue_update as _impl_issue_update,
 )
+from jira_mcp_server.tools.issue_tools import (
+    jira_subtask_create as _impl_subtask_create,
+)
 from jira_mcp_server.tools.project_tools import (
     initialize_project_tools,
 )
@@ -232,6 +235,40 @@ def jira_issue_create(
         labels=labels or [],
         due_date=due_date,
         **kwargs,
+    )
+
+
+@mcp.tool()
+def jira_subtask_create(
+    parent_key: str,
+    summary: str,
+    description: str = "",
+    priority: str | None = None,
+    assignee: str | None = None,
+    labels: list[str] | None = None,
+    due_date: str | None = None,
+) -> Dict[str, Any]:
+    """Create a subtask under an existing issue.
+
+    Auto-detects the project's subtask issue type. Falls back to "Sub-task" if not found.
+
+    Args:
+        parent_key: Parent issue key (e.g., "PROJ-123")
+        summary: Subtask title/summary
+        description: Detailed description
+        priority: Issue priority
+        assignee: Username or user ID to assign
+        labels: List of labels
+        due_date: Due date in ISO format (YYYY-MM-DD)
+    """
+    return _impl_subtask_create(  # pragma: no cover
+        parent_key=parent_key,
+        summary=summary,
+        description=description,
+        priority=priority,
+        assignee=assignee,
+        labels=labels or [],
+        due_date=due_date,
     )
 
 

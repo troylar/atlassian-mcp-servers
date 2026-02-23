@@ -133,6 +133,76 @@ def jira_issue_create(
         raise ValueError(f"Failed to create issue: {str(e)}")
 
 
+def jira_subtask_create(
+    parent_key: str,
+    summary: str,
+    description: str = "",
+    priority: Optional[str] = None,
+    assignee: Optional[str] = None,
+    labels: Optional[List[str]] = None,
+    due_date: Optional[str] = None,
+) -> Dict[str, Any]:
+    if not _client or not _validator:
+        raise RuntimeError("Issue tools not initialized")
+    if not parent_key or not parent_key.strip():
+        raise ValueError("Parent key cannot be empty")
+    if not summary or not summary.strip():
+        raise ValueError("Summary cannot be empty")
+
+    parts = parent_key.strip().split("-")
+    if len(parts) < 2:
+        raise ValueError(f"Invalid parent key format: {parent_key}")
+    project = parts[0]
+
+    try:
+        project_data = _client.get_project(project)
+    except Exception as e:
+        raise ValueError(f"Failed to get project {project}: {str(e)}")
+
+    issue_types = project_data.get("issueTypes", [])
+    subtask_type_name = None
+    for it in issue_types:
+        if it.get("subtask") is True:
+            subtask_type_name = it.get("name")
+            break
+    if not subtask_type_name:
+        subtask_type_name = "Sub-task"
+
+    try:
+        schema = _get_field_schema(project, subtask_type_name)
+    except Exception as e:
+        raise ValueError(f"Failed to get schema for subtask type: {str(e)}")
+
+    fields: Dict[str, Any] = {
+        "project": {"key": project},
+        "parent": {"key": sanitize_text(parent_key.strip())},
+        "summary": sanitize_text(summary),
+        "issuetype": {"name": subtask_type_name},
+    }
+
+    if description:
+        fields["description"] = sanitize_long_text(description)
+    if priority:
+        fields["priority"] = {"name": sanitize_text(priority)}
+    if assignee:
+        fields["assignee"] = {"name": sanitize_text(assignee)}
+    if labels:
+        fields["labels"] = [sanitize_text(label) for label in labels]
+    if due_date:
+        fields["duedate"] = sanitize_text(due_date)
+
+    try:
+        _validator.validate_fields(fields, schema)
+    except FieldValidationError as e:
+        raise ValueError(f"Validation failed: {str(e)}")
+
+    issue_data = {"fields": fields}
+    try:
+        return _client.create_issue(issue_data)
+    except Exception as e:
+        raise ValueError(f"Failed to create subtask: {str(e)}")
+
+
 def jira_issue_update(
     issue_key: str,
     summary: Optional[str] = None,
