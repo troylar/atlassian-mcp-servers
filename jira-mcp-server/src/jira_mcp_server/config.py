@@ -40,6 +40,15 @@ class JiraConfig(BaseSettings):
     cache_ttl: int = Field(default=3600, description="Schema cache TTL in seconds", gt=0)
     timeout: int = Field(default=30, description="HTTP request timeout in seconds", gt=0)
     verify_ssl: bool = Field(default=True, description="Verify SSL certificates")
+    default_detail: str = Field(default="summary", description="Default response detail level: 'summary' or 'full'")
+    max_description_length: int = Field(
+        default=500, description="Max description chars in summary mode. 0=no limit", ge=0
+    )
+    default_limit: int = Field(default=25, description="Default pagination limit", gt=0)
+    summary_fields: Optional[str] = Field(
+        default=None, description="Comma-separated field override for summary mode"
+    )
+    include_links: bool = Field(default=False, description="Include self/web URLs in responses")
 
     model_config = SettingsConfigDict(
         env_prefix="JIRA_MCP_",

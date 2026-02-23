@@ -3,14 +3,22 @@
 from typing import Any, Dict, Optional
 
 from jira_mcp_server.client import JiraClient
+from jira_mcp_server.config import JiraConfig
+from jira_mcp_server.formatters import (
+    _get_summary_api_fields,
+    _resolve_detail,
+    format_issues,
+)
 from jira_mcp_server.utils.text import sanitize_text
 
 _client: Optional[JiraClient] = None
+_config: Optional[JiraConfig] = None
 
 
-def initialize_filter_tools(client: JiraClient) -> None:
-    global _client
+def initialize_filter_tools(client: JiraClient, config: JiraConfig) -> None:
+    global _client, _config
     _client = client
+    _config = config
 
 
 def jira_filter_create(
@@ -53,9 +61,12 @@ def jira_filter_get(filter_id: str) -> Dict[str, Any]:
         raise ValueError(f"Get filter failed: {str(e)}")
 
 
-def jira_filter_execute(filter_id: str, max_results: int = 50, start_at: int = 0) -> Dict[str, Any]:
+def jira_filter_execute(
+    filter_id: str, max_results: int = 50, start_at: int = 0, detail: Optional[str] = None
+) -> Dict[str, Any]:
     if not _client:
         raise RuntimeError("Filter tools not initialized")
+    resolved = _resolve_detail(detail, _config)
     if not filter_id or not filter_id.strip():
         raise ValueError("Filter ID cannot be empty")
     try:
@@ -63,7 +74,11 @@ def jira_filter_execute(filter_id: str, max_results: int = 50, start_at: int = 0
         jql = filter_data.get("jql")
         if not jql:
             raise ValueError("Filter does not contain a valid JQL query")
-        return _client.search_issues(jql=jql, max_results=max_results, start_at=start_at)
+        fields_param = _get_summary_api_fields(_config) if resolved == "summary" else None
+        raw = _client.search_issues(jql=jql, max_results=max_results, start_at=start_at, fields=fields_param)
+        if resolved == "summary":
+            return format_issues(raw, _config)
+        return raw
     except Exception as e:
         raise ValueError(f"Filter execution failed: {str(e)}")
 
