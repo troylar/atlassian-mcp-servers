@@ -7,10 +7,26 @@ from fastmcp import FastMCP
 
 from bitbucket_mcp_server.client import BitbucketClient
 from bitbucket_mcp_server.config import BitbucketConfig
+from bitbucket_mcp_server.formatters import (
+    _resolve_detail,
+    format_branch,
+    format_branches,
+    format_commit,
+    format_commits,
+    format_pr,
+    format_pr_comments,
+    format_project,
+    format_projects,
+    format_prs,
+    format_repo,
+    format_repos,
+    format_tags,
+)
 
 mcp = FastMCP("bitbucket-mcp-server")
 
 _client: Optional[BitbucketClient] = None
+_config: Optional[BitbucketConfig] = None
 
 
 def _get_client() -> BitbucketClient:
@@ -32,24 +48,36 @@ def bitbucket_health_check() -> Dict[str, Any]:  # pragma: no cover
 
 
 @mcp.tool()
-def bitbucket_project_list(limit: int = 25, start: int = 0) -> Dict[str, Any]:  # pragma: no cover
+def bitbucket_project_list(
+    limit: int = 25, start: int = 0, detail: str | None = None
+) -> Dict[str, Any]:  # pragma: no cover
     """List Bitbucket projects.
 
     Args:
         limit: Max results (default: 25)
         start: Starting offset
+        detail: Response detail level ('summary' or 'full'). Default from config.
     """
-    return _get_client().list_projects(limit, start)  # pragma: no cover
+    resolved = _resolve_detail(detail, _config)  # pragma: no cover
+    raw = _get_client().list_projects(limit, start)  # pragma: no cover
+    if resolved == "summary":  # pragma: no cover
+        return format_projects(raw, _config)  # pragma: no cover
+    return raw  # pragma: no cover
 
 
 @mcp.tool()
-def bitbucket_project_get(project_key: str) -> Dict[str, Any]:  # pragma: no cover
+def bitbucket_project_get(project_key: str, detail: str | None = None) -> Dict[str, Any]:  # pragma: no cover
     """Get project details.
 
     Args:
         project_key: Project key
+        detail: Response detail level ('summary' or 'full'). Default from config.
     """
-    return _get_client().get_project(project_key)  # pragma: no cover
+    resolved = _resolve_detail(detail, _config)  # pragma: no cover
+    raw = _get_client().get_project(project_key)  # pragma: no cover
+    if resolved == "summary":  # pragma: no cover
+        return format_project(raw, _config)  # pragma: no cover
+    return raw  # pragma: no cover
 
 
 @mcp.tool()
@@ -68,26 +96,38 @@ def bitbucket_project_create(key: str, name: str, description: str = "") -> Dict
 
 
 @mcp.tool()
-def bitbucket_repo_list(project: str, limit: int = 25, start: int = 0) -> Dict[str, Any]:  # pragma: no cover
+def bitbucket_repo_list(
+    project: str, limit: int = 25, start: int = 0, detail: str | None = None
+) -> Dict[str, Any]:  # pragma: no cover
     """List repositories in a project.
 
     Args:
         project: Project key
         limit: Max results
         start: Starting offset
+        detail: Response detail level ('summary' or 'full'). Default from config.
     """
-    return _get_client().list_repos(project, limit, start)  # pragma: no cover
+    resolved = _resolve_detail(detail, _config)  # pragma: no cover
+    raw = _get_client().list_repos(project, limit, start)  # pragma: no cover
+    if resolved == "summary":  # pragma: no cover
+        return format_repos(raw, _config)  # pragma: no cover
+    return raw  # pragma: no cover
 
 
 @mcp.tool()
-def bitbucket_repo_get(project: str, repo: str) -> Dict[str, Any]:  # pragma: no cover
+def bitbucket_repo_get(project: str, repo: str, detail: str | None = None) -> Dict[str, Any]:  # pragma: no cover
     """Get repository details.
 
     Args:
         project: Project key
         repo: Repository slug
+        detail: Response detail level ('summary' or 'full'). Default from config.
     """
-    return _get_client().get_repo(project, repo)  # pragma: no cover
+    resolved = _resolve_detail(detail, _config)  # pragma: no cover
+    raw = _get_client().get_repo(project, repo)  # pragma: no cover
+    if resolved == "summary":  # pragma: no cover
+        return format_repo(raw, _config)  # pragma: no cover
+    return raw  # pragma: no cover
 
 
 @mcp.tool()
@@ -131,7 +171,7 @@ def bitbucket_repo_fork(project: str, repo: str, name: str | None = None) -> Dic
 
 @mcp.tool()
 def bitbucket_branch_list(  # pragma: no cover
-    project: str, repo: str, limit: int = 25, start: int = 0
+    project: str, repo: str, limit: int = 25, start: int = 0, detail: str | None = None
 ) -> Dict[str, Any]:
     """List branches in a repository.
 
@@ -140,8 +180,13 @@ def bitbucket_branch_list(  # pragma: no cover
         repo: Repository slug
         limit: Max results
         start: Starting offset
+        detail: Response detail level ('summary' or 'full'). Default from config.
     """
-    return _get_client().list_branches(project, repo, limit, start)  # pragma: no cover
+    resolved = _resolve_detail(detail, _config)  # pragma: no cover
+    raw = _get_client().list_branches(project, repo, limit, start)  # pragma: no cover
+    if resolved == "summary":  # pragma: no cover
+        return format_branches(raw, _config)  # pragma: no cover
+    return raw  # pragma: no cover
 
 
 @mcp.tool()
@@ -171,14 +216,21 @@ def bitbucket_branch_delete(project: str, repo: str, name: str) -> Dict[str, Any
 
 
 @mcp.tool()
-def bitbucket_branch_default(project: str, repo: str) -> Dict[str, Any]:  # pragma: no cover
+def bitbucket_branch_default(
+    project: str, repo: str, detail: str | None = None
+) -> Dict[str, Any]:  # pragma: no cover
     """Get the default branch of a repository.
 
     Args:
         project: Project key
         repo: Repository slug
+        detail: Response detail level ('summary' or 'full'). Default from config.
     """
-    return _get_client().get_default_branch(project, repo)  # pragma: no cover
+    resolved = _resolve_detail(detail, _config)  # pragma: no cover
+    raw = _get_client().get_default_branch(project, repo)  # pragma: no cover
+    if resolved == "summary":  # pragma: no cover
+        return format_branch(raw, _config)  # pragma: no cover
+    return raw  # pragma: no cover
 
 
 # --- Commit Tools (3 tools) ---
@@ -186,7 +238,8 @@ def bitbucket_branch_default(project: str, repo: str) -> Dict[str, Any]:  # prag
 
 @mcp.tool()
 def bitbucket_commit_list(
-    project: str, repo: str, branch: str | None = None, limit: int = 25, start: int = 0
+    project: str, repo: str, branch: str | None = None, limit: int = 25, start: int = 0,
+    detail: str | None = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """List commits in a repository.
 
@@ -196,20 +249,32 @@ def bitbucket_commit_list(
         branch: Optional branch to list commits from
         limit: Max results
         start: Starting offset
+        detail: Response detail level ('summary' or 'full'). Default from config.
     """
-    return _get_client().list_commits(project, repo, branch, limit, start)  # pragma: no cover
+    resolved = _resolve_detail(detail, _config)  # pragma: no cover
+    raw = _get_client().list_commits(project, repo, branch, limit, start)  # pragma: no cover
+    if resolved == "summary":  # pragma: no cover
+        return format_commits(raw, _config)  # pragma: no cover
+    return raw  # pragma: no cover
 
 
 @mcp.tool()
-def bitbucket_commit_get(project: str, repo: str, commit_id: str) -> Dict[str, Any]:  # pragma: no cover
+def bitbucket_commit_get(
+    project: str, repo: str, commit_id: str, detail: str | None = None
+) -> Dict[str, Any]:  # pragma: no cover
     """Get commit details.
 
     Args:
         project: Project key
         repo: Repository slug
         commit_id: Commit hash
+        detail: Response detail level ('summary' or 'full'). Default from config.
     """
-    return _get_client().get_commit(project, repo, commit_id)  # pragma: no cover
+    resolved = _resolve_detail(detail, _config)  # pragma: no cover
+    raw = _get_client().get_commit(project, repo, commit_id)  # pragma: no cover
+    if resolved == "summary":  # pragma: no cover
+        return format_commit(raw, _config)  # pragma: no cover
+    return raw  # pragma: no cover
 
 
 @mcp.tool()
@@ -229,7 +294,8 @@ def bitbucket_commit_diff(project: str, repo: str, commit_id: str) -> Dict[str, 
 
 @mcp.tool()
 def bitbucket_pr_list(
-    project: str, repo: str, state: str = "OPEN", limit: int = 25, start: int = 0
+    project: str, repo: str, state: str = "OPEN", limit: int = 25, start: int = 0,
+    detail: str | None = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """List pull requests.
 
@@ -239,20 +305,32 @@ def bitbucket_pr_list(
         state: PR state filter (OPEN, MERGED, DECLINED, ALL)
         limit: Max results
         start: Starting offset
+        detail: Response detail level ('summary' or 'full'). Default from config.
     """
-    return _get_client().list_prs(project, repo, state, limit, start)  # pragma: no cover
+    resolved = _resolve_detail(detail, _config)  # pragma: no cover
+    raw = _get_client().list_prs(project, repo, state, limit, start)  # pragma: no cover
+    if resolved == "summary":  # pragma: no cover
+        return format_prs(raw, _config)  # pragma: no cover
+    return raw  # pragma: no cover
 
 
 @mcp.tool()
-def bitbucket_pr_get(project: str, repo: str, pr_id: int) -> Dict[str, Any]:  # pragma: no cover
+def bitbucket_pr_get(
+    project: str, repo: str, pr_id: int, detail: str | None = None
+) -> Dict[str, Any]:  # pragma: no cover
     """Get pull request details.
 
     Args:
         project: Project key
         repo: Repository slug
         pr_id: Pull request ID
+        detail: Response detail level ('summary' or 'full'). Default from config.
     """
-    return _get_client().get_pr(project, repo, pr_id)  # pragma: no cover
+    resolved = _resolve_detail(detail, _config)  # pragma: no cover
+    raw = _get_client().get_pr(project, repo, pr_id)  # pragma: no cover
+    if resolved == "summary":  # pragma: no cover
+        return format_pr(raw, _config)  # pragma: no cover
+    return raw  # pragma: no cover
 
 
 @mcp.tool()
@@ -347,15 +425,22 @@ def bitbucket_pr_diff(project: str, repo: str, pr_id: int) -> Dict[str, Any]:  #
 
 
 @mcp.tool()
-def bitbucket_pr_commits(project: str, repo: str, pr_id: int) -> Dict[str, Any]:  # pragma: no cover
+def bitbucket_pr_commits(
+    project: str, repo: str, pr_id: int, detail: str | None = None
+) -> Dict[str, Any]:  # pragma: no cover
     """Get commits in a pull request.
 
     Args:
         project: Project key
         repo: Repository slug
         pr_id: PR ID
+        detail: Response detail level ('summary' or 'full'). Default from config.
     """
-    return _get_client().get_pr_commits(project, repo, pr_id)  # pragma: no cover
+    resolved = _resolve_detail(detail, _config)  # pragma: no cover
+    raw = _get_client().get_pr_commits(project, repo, pr_id)  # pragma: no cover
+    if resolved == "summary":  # pragma: no cover
+        return format_commits(raw, _config)  # pragma: no cover
+    return raw  # pragma: no cover
 
 
 @mcp.tool()
@@ -392,15 +477,22 @@ def bitbucket_pr_comment_add(
 
 
 @mcp.tool()
-def bitbucket_pr_comment_list(project: str, repo: str, pr_id: int) -> Dict[str, Any]:  # pragma: no cover
+def bitbucket_pr_comment_list(
+    project: str, repo: str, pr_id: int, detail: str | None = None
+) -> Dict[str, Any]:  # pragma: no cover
     """List comments on a pull request.
 
     Args:
         project: Project key
         repo: Repository slug
         pr_id: PR ID
+        detail: Response detail level ('summary' or 'full'). Default from config.
     """
-    return _get_client().list_pr_comments(project, repo, pr_id)  # pragma: no cover
+    resolved = _resolve_detail(detail, _config)  # pragma: no cover
+    raw = _get_client().list_pr_comments(project, repo, pr_id)  # pragma: no cover
+    if resolved == "summary":  # pragma: no cover
+        return format_pr_comments(raw, _config)  # pragma: no cover
+    return raw  # pragma: no cover
 
 
 @mcp.tool()
@@ -555,7 +647,9 @@ def bitbucket_file_content(
 
 
 @mcp.tool()
-def bitbucket_tag_list(project: str, repo: str, limit: int = 25, start: int = 0) -> Dict[str, Any]:  # pragma: no cover
+def bitbucket_tag_list(
+    project: str, repo: str, limit: int = 25, start: int = 0, detail: str | None = None
+) -> Dict[str, Any]:  # pragma: no cover
     """List tags in a repository.
 
     Args:
@@ -563,8 +657,13 @@ def bitbucket_tag_list(project: str, repo: str, limit: int = 25, start: int = 0)
         repo: Repository slug
         limit: Max results
         start: Starting offset
+        detail: Response detail level ('summary' or 'full'). Default from config.
     """
-    return _get_client().list_tags(project, repo, limit, start)  # pragma: no cover
+    resolved = _resolve_detail(detail, _config)  # pragma: no cover
+    raw = _get_client().list_tags(project, repo, limit, start)  # pragma: no cover
+    if resolved == "summary":  # pragma: no cover
+        return format_tags(raw, _config)  # pragma: no cover
+    return raw  # pragma: no cover
 
 
 @mcp.tool()
@@ -687,8 +786,9 @@ def bitbucket_diff(project: str, repo: str, from_ref: str, to_ref: str) -> Dict[
 def main() -> None:
     """Main entry point for the Bitbucket MCP server."""
     try:
-        global _client
+        global _client, _config
         config = BitbucketConfig()  # type: ignore[call-arg]
+        _config = config
         _client = BitbucketClient(config)
 
         from importlib.metadata import version as pkg_version
