@@ -247,6 +247,183 @@ class TestIssueCreate:
                 issue_tools.jira_issue_create(project="PROJ", summary="Test")
 
 
+class TestSubtaskCreate:
+    def test_not_initialized(self) -> None:
+        from jira_mcp_server.tools import issue_tools
+
+        issue_tools._client = None
+        issue_tools._validator = None
+        with pytest.raises(RuntimeError, match="not initialized"):
+            issue_tools.jira_subtask_create(parent_key="TEST-1", summary="Sub")
+
+    def test_success_auto_detect_subtask_type(self) -> None:
+        from jira_mcp_server.tools import issue_tools
+
+        mock_client = _mock_client()
+        mock_client.get_project.return_value = {
+            "key": "TEST",
+            "issueTypes": [
+                {"name": "Task", "subtask": False},
+                {"name": "Sub-task", "subtask": True},
+            ],
+        }
+        mock_client.create_issue.return_value = {"key": "TEST-2", "id": "10002"}
+        issue_tools._client = mock_client
+        issue_tools._validator = MagicMock()
+        with patch.object(issue_tools, "_get_field_schema", return_value=[]):
+            result = issue_tools.jira_subtask_create(parent_key="TEST-1", summary="Sub")
+        assert result["key"] == "TEST-2"
+        call_data = mock_client.create_issue.call_args[0][0]
+        assert call_data["fields"]["parent"] == {"key": "TEST-1"}
+        assert call_data["fields"]["issuetype"] == {"name": "Sub-task"}
+
+    def test_success_custom_subtask_type_name(self) -> None:
+        from jira_mcp_server.tools import issue_tools
+
+        mock_client = _mock_client()
+        mock_client.get_project.return_value = {
+            "key": "PROJ",
+            "issueTypes": [
+                {"name": "Story", "subtask": False},
+                {"name": "Technical Subtask", "subtask": True},
+            ],
+        }
+        mock_client.create_issue.return_value = {"key": "PROJ-5"}
+        issue_tools._client = mock_client
+        issue_tools._validator = MagicMock()
+        with patch.object(issue_tools, "_get_field_schema", return_value=[]):
+            issue_tools.jira_subtask_create(parent_key="PROJ-1", summary="Sub")
+        call_data = mock_client.create_issue.call_args[0][0]
+        assert call_data["fields"]["issuetype"] == {"name": "Technical Subtask"}
+
+    def test_fallback_to_default_subtask_type(self) -> None:
+        from jira_mcp_server.tools import issue_tools
+
+        mock_client = _mock_client()
+        mock_client.get_project.return_value = {
+            "key": "PROJ",
+            "issueTypes": [
+                {"name": "Task", "subtask": False},
+                {"name": "Bug", "subtask": False},
+            ],
+        }
+        mock_client.create_issue.return_value = {"key": "PROJ-5"}
+        issue_tools._client = mock_client
+        issue_tools._validator = MagicMock()
+        with patch.object(issue_tools, "_get_field_schema", return_value=[]):
+            issue_tools.jira_subtask_create(parent_key="PROJ-1", summary="Sub")
+        call_data = mock_client.create_issue.call_args[0][0]
+        assert call_data["fields"]["issuetype"] == {"name": "Sub-task"}
+
+    def test_with_all_optional_fields(self) -> None:
+        from jira_mcp_server.tools import issue_tools
+
+        mock_client = _mock_client()
+        mock_client.get_project.return_value = {
+            "key": "TEST",
+            "issueTypes": [{"name": "Sub-task", "subtask": True}],
+        }
+        mock_client.create_issue.return_value = {"key": "TEST-2"}
+        issue_tools._client = mock_client
+        issue_tools._validator = MagicMock()
+        with patch.object(issue_tools, "_get_field_schema", return_value=[]):
+            issue_tools.jira_subtask_create(
+                parent_key="TEST-1",
+                summary="Sub",
+                description="Details",
+                priority="High",
+                assignee="jdoe",
+                labels=["backend"],
+                due_date="2026-03-01",
+            )
+        call_data = mock_client.create_issue.call_args[0][0]
+        assert "description" in call_data["fields"]
+        assert call_data["fields"]["priority"] == {"name": "High"}
+        assert call_data["fields"]["assignee"] == {"name": "jdoe"}
+        assert call_data["fields"]["labels"] == ["backend"]
+        assert call_data["fields"]["duedate"] == "2026-03-01"
+
+    def test_empty_parent_key_raises(self) -> None:
+        from jira_mcp_server.tools import issue_tools
+
+        issue_tools._client = _mock_client()
+        issue_tools._validator = MagicMock()
+        with pytest.raises(ValueError, match="Parent key cannot be empty"):
+            issue_tools.jira_subtask_create(parent_key="", summary="Sub")
+
+    def test_empty_summary_raises(self) -> None:
+        from jira_mcp_server.tools import issue_tools
+
+        issue_tools._client = _mock_client()
+        issue_tools._validator = MagicMock()
+        with pytest.raises(ValueError, match="Summary cannot be empty"):
+            issue_tools.jira_subtask_create(parent_key="TEST-1", summary="")
+
+    def test_invalid_parent_key_format(self) -> None:
+        from jira_mcp_server.tools import issue_tools
+
+        issue_tools._client = _mock_client()
+        issue_tools._validator = MagicMock()
+        with pytest.raises(ValueError, match="Invalid parent key format"):
+            issue_tools.jira_subtask_create(parent_key="NOHYPHEN", summary="Sub")
+
+    def test_get_project_failure(self) -> None:
+        from jira_mcp_server.tools import issue_tools
+
+        mock_client = _mock_client()
+        mock_client.get_project.side_effect = ValueError("not found")
+        issue_tools._client = mock_client
+        issue_tools._validator = MagicMock()
+        with pytest.raises(ValueError, match="Failed to get project"):
+            issue_tools.jira_subtask_create(parent_key="TEST-1", summary="Sub")
+
+    def test_schema_fetch_failure(self) -> None:
+        from jira_mcp_server.tools import issue_tools
+
+        mock_client = _mock_client()
+        mock_client.get_project.return_value = {
+            "key": "TEST",
+            "issueTypes": [{"name": "Sub-task", "subtask": True}],
+        }
+        issue_tools._client = mock_client
+        issue_tools._validator = MagicMock()
+        with patch.object(issue_tools, "_get_field_schema", side_effect=ValueError("schema error")):
+            with pytest.raises(ValueError, match="Failed to get schema"):
+                issue_tools.jira_subtask_create(parent_key="TEST-1", summary="Sub")
+
+    def test_validation_failure(self) -> None:
+        from jira_mcp_server.models import FieldValidationError
+        from jira_mcp_server.tools import issue_tools
+
+        mock_client = _mock_client()
+        mock_client.get_project.return_value = {
+            "key": "TEST",
+            "issueTypes": [{"name": "Sub-task", "subtask": True}],
+        }
+        issue_tools._client = mock_client
+        mock_validator = MagicMock()
+        mock_validator.validate_fields.side_effect = FieldValidationError("summary", "bad field")
+        issue_tools._validator = mock_validator
+        with patch.object(issue_tools, "_get_field_schema", return_value=[]):
+            with pytest.raises(ValueError, match="Validation failed"):
+                issue_tools.jira_subtask_create(parent_key="TEST-1", summary="Sub")
+
+    def test_create_issue_failure(self) -> None:
+        from jira_mcp_server.tools import issue_tools
+
+        mock_client = _mock_client()
+        mock_client.get_project.return_value = {
+            "key": "TEST",
+            "issueTypes": [{"name": "Sub-task", "subtask": True}],
+        }
+        mock_client.create_issue.side_effect = ValueError("API error")
+        issue_tools._client = mock_client
+        issue_tools._validator = MagicMock()
+        with patch.object(issue_tools, "_get_field_schema", return_value=[]):
+            with pytest.raises(ValueError, match="Failed to create subtask"):
+                issue_tools.jira_subtask_create(parent_key="TEST-1", summary="Sub")
+
+
 class TestIssueUpdate:
     def test_not_initialized(self) -> None:
         from jira_mcp_server.tools import issue_tools
