@@ -66,7 +66,7 @@ class TestMain:
             mock_mcp.run.assert_called_once()
 
     def test_main_ssl_disabled_warning(
-        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
     ) -> None:
         monkeypatch.setenv("JIRA_MCP_URL", "https://jira.example.com")
         monkeypatch.setenv("JIRA_MCP_TOKEN", "test-token")
@@ -76,6 +76,7 @@ class TestMain:
         from jira_mcp_server.server import main
 
         with (
+            caplog.at_level("WARNING", logger="jira_mcp_server.server"),
             patch("jira_mcp_server.server.JiraClient"),
             patch("jira_mcp_server.server.initialize_issue_tools"),
             patch("jira_mcp_server.server.initialize_search_tools"),
@@ -90,8 +91,7 @@ class TestMain:
             patch("jira_mcp_server.server.mcp"),
         ):
             main()
-        captured = capsys.readouterr()
-        assert "DISABLED" in captured.err
+        assert "DISABLED" in caplog.text
 
     def test_main_config_error_exits(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("JIRA_MCP_URL", raising=False)
