@@ -478,6 +478,28 @@ class JiraClient:
         except httpx.TimeoutException:
             raise ValueError(f"Timeout getting issues for sprint {sprint_id}")
 
+    def add_issues_to_sprint(self, sprint_id: str, issue_keys: List[str]) -> Dict[str, Any]:
+        url = f"{self.base_url}/rest/agile/1.0/sprint/{sprint_id}/issue"
+        payload = {"issues": issue_keys}
+        try:
+            response = self._request("POST", url, json=payload)
+            if response.status_code not in (200, 204):
+                self._handle_error(response)
+            return {"success": True, "sprint_id": sprint_id, "issues_added": issue_keys}
+        except httpx.TimeoutException:
+            raise ValueError(f"Timeout adding issues to sprint {sprint_id}")
+
+    def remove_issues_from_sprint(self, issue_keys: List[str]) -> Dict[str, Any]:
+        url = f"{self.base_url}/rest/agile/1.0/backlog/issue"
+        payload = {"issues": issue_keys}
+        try:
+            response = self._request("POST", url, json=payload)
+            if response.status_code not in (200, 204):
+                self._handle_error(response)
+            return {"success": True, "issues_moved_to_backlog": issue_keys}
+        except httpx.TimeoutException:
+            raise ValueError("Timeout removing issues from sprint")
+
     # User operations
 
     def search_users(self, query: str, max_results: int = 50) -> List[Dict[str, Any]]:
