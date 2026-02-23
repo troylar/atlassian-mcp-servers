@@ -7,10 +7,24 @@ from fastmcp import FastMCP
 
 from confluence_mcp_server.client import ConfluenceClient
 from confluence_mcp_server.config import ConfluenceConfig
+from confluence_mcp_server.formatters import (
+    _resolve_detail,
+    format_attachment,
+    format_attachments,
+    format_comments,
+    format_labels,
+    format_page,
+    format_pages,
+    format_search_results,
+    format_space,
+    format_spaces,
+    format_user,
+)
 
 mcp = FastMCP("confluence-mcp-server")
 
 _client: Optional[ConfluenceClient] = None
+_config: Optional[ConfluenceConfig] = None
 
 
 def _get_client() -> ConfluenceClient:
@@ -32,26 +46,37 @@ def confluence_health_check() -> Dict[str, Any]:  # pragma: no cover
 
 
 @mcp.tool()
-def confluence_page_get(page_id: str) -> Dict[str, Any]:  # pragma: no cover
+def confluence_page_get(page_id: str, detail: str | None = None) -> Dict[str, Any]:  # pragma: no cover
     """Get page details by ID.
 
     Args:
         page_id: Confluence page ID
+        detail: Response detail level ('summary' or 'full'). Default from config.
     """
-    return _get_client().get_page(page_id)  # pragma: no cover
+    resolved = _resolve_detail(detail, _config)  # pragma: no cover
+    raw = _get_client().get_page(page_id)  # pragma: no cover
+    if resolved == "summary":  # pragma: no cover
+        return format_page(raw, _config)  # pragma: no cover
+    return raw  # pragma: no cover
 
 
 @mcp.tool()
-def confluence_page_get_by_title(space_key: str, title: str) -> Dict[str, Any]:  # pragma: no cover
+def confluence_page_get_by_title(  # pragma: no cover
+    space_key: str, title: str, detail: str | None = None
+) -> Dict[str, Any]:
     """Find a page by title within a space.
 
     Args:
         space_key: Space key (e.g., "DEV")
         title: Page title to search for
+        detail: Response detail level ('summary' or 'full'). Default from config.
     """
+    resolved = _resolve_detail(detail, _config)  # pragma: no cover
     result = _get_client().get_page_by_title(space_key, title)  # pragma: no cover
     if result is None:  # pragma: no cover
         return {"found": False, "message": f"No page titled '{title}' found in space '{space_key}'"}  # pragma: no cover
+    if resolved == "summary":  # pragma: no cover
+        return format_page(result, _config)  # pragma: no cover
     return result  # pragma: no cover
 
 
@@ -126,7 +151,7 @@ def confluence_page_copy(
 
 @mcp.tool()
 def confluence_page_children(
-    page_id: str, limit: int = 25, start: int = 0
+    page_id: str, limit: int = 25, start: int = 0, detail: str | None = None
 ) -> Dict[str, Any]:  # pragma: no cover
     """Get child pages of a page.
 
@@ -134,18 +159,28 @@ def confluence_page_children(
         page_id: Parent page ID
         limit: Max results (default: 25)
         start: Starting offset
+        detail: Response detail level ('summary' or 'full'). Default from config.
     """
-    return _get_client().get_children(page_id, limit, start)  # pragma: no cover
+    resolved = _resolve_detail(detail, _config)  # pragma: no cover
+    raw = _get_client().get_children(page_id, limit, start)  # pragma: no cover
+    if resolved == "summary":  # pragma: no cover
+        return format_pages(raw, _config)  # pragma: no cover
+    return raw  # pragma: no cover
 
 
 @mcp.tool()
-def confluence_page_ancestors(page_id: str) -> List[Dict[str, Any]]:  # pragma: no cover
+def confluence_page_ancestors(page_id: str, detail: str | None = None) -> List[Dict[str, Any]]:  # pragma: no cover
     """Get ancestor pages (breadcrumb trail).
 
     Args:
         page_id: Page ID
+        detail: Response detail level ('summary' or 'full'). Default from config.
     """
-    return _get_client().get_ancestors(page_id)  # pragma: no cover
+    resolved = _resolve_detail(detail, _config)  # pragma: no cover
+    raw = _get_client().get_ancestors(page_id)  # pragma: no cover
+    if resolved == "summary":  # pragma: no cover
+        return [format_page(a, _config) for a in raw]  # pragma: no cover
+    return raw  # pragma: no cover
 
 
 @mcp.tool()
@@ -188,7 +223,7 @@ def confluence_page_restore(
 
 @mcp.tool()
 def confluence_search_cql(
-    cql: str, limit: int = 25, start: int = 0
+    cql: str, limit: int = 25, start: int = 0, detail: str | None = None
 ) -> Dict[str, Any]:  # pragma: no cover
     """Search Confluence using CQL (Confluence Query Language).
 
@@ -196,8 +231,13 @@ def confluence_search_cql(
         cql: CQL query string
         limit: Max results (default: 25)
         start: Starting offset
+        detail: Response detail level ('summary' or 'full'). Default from config.
     """
-    return _get_client().search_cql(cql, limit, start)  # pragma: no cover
+    resolved = _resolve_detail(detail, _config)  # pragma: no cover
+    raw = _get_client().search_cql(cql, limit, start)  # pragma: no cover
+    if resolved == "summary":  # pragma: no cover
+        return format_search_results(raw, _config)  # pragma: no cover
+    return raw  # pragma: no cover
 
 
 @mcp.tool()
@@ -207,6 +247,7 @@ def confluence_search(
     content_type: str | None = None,
     limit: int = 25,
     start: int = 0,
+    detail: str | None = None,
 ) -> Dict[str, Any]:  # pragma: no cover
     """Search Confluence content by text with optional filters.
 
@@ -216,32 +257,49 @@ def confluence_search(
         content_type: Optional content type filter (page, blogpost)
         limit: Max results (default: 25)
         start: Starting offset
+        detail: Response detail level ('summary' or 'full'). Default from config.
     """
-    return _get_client().search_content(query, space_key, content_type, limit, start)  # pragma: no cover
+    resolved = _resolve_detail(detail, _config)  # pragma: no cover
+    raw = _get_client().search_content(query, space_key, content_type, limit, start)  # pragma: no cover
+    if resolved == "summary":  # pragma: no cover
+        return format_search_results(raw, _config)  # pragma: no cover
+    return raw  # pragma: no cover
 
 
 # --- Space Tools (4 tools) ---
 
 
 @mcp.tool()
-def confluence_space_list(limit: int = 25, start: int = 0) -> Dict[str, Any]:  # pragma: no cover
+def confluence_space_list(
+    limit: int = 25, start: int = 0, detail: str | None = None
+) -> Dict[str, Any]:  # pragma: no cover
     """List all accessible Confluence spaces.
 
     Args:
         limit: Max results (default: 25)
         start: Starting offset
+        detail: Response detail level ('summary' or 'full'). Default from config.
     """
-    return _get_client().list_spaces(limit, start)  # pragma: no cover
+    resolved = _resolve_detail(detail, _config)  # pragma: no cover
+    raw = _get_client().list_spaces(limit, start)  # pragma: no cover
+    if resolved == "summary":  # pragma: no cover
+        return format_spaces(raw, _config)  # pragma: no cover
+    return raw  # pragma: no cover
 
 
 @mcp.tool()
-def confluence_space_get(space_key: str) -> Dict[str, Any]:  # pragma: no cover
+def confluence_space_get(space_key: str, detail: str | None = None) -> Dict[str, Any]:  # pragma: no cover
     """Get space details.
 
     Args:
         space_key: Space key (e.g., "DEV")
+        detail: Response detail level ('summary' or 'full'). Default from config.
     """
-    return _get_client().get_space(space_key)  # pragma: no cover
+    resolved = _resolve_detail(detail, _config)  # pragma: no cover
+    raw = _get_client().get_space(space_key)  # pragma: no cover
+    if resolved == "summary":  # pragma: no cover
+        return format_space(raw, _config)  # pragma: no cover
+    return raw  # pragma: no cover
 
 
 @mcp.tool()
@@ -260,7 +318,7 @@ def confluence_space_create(
 
 @mcp.tool()
 def confluence_space_pages(
-    space_key: str, limit: int = 25, start: int = 0
+    space_key: str, limit: int = 25, start: int = 0, detail: str | None = None
 ) -> Dict[str, Any]:  # pragma: no cover
     """List all pages in a Confluence space.
 
@@ -268,8 +326,13 @@ def confluence_space_pages(
         space_key: Space key (e.g., "DEV")
         limit: Max results (default: 25)
         start: Starting offset for pagination
+        detail: Response detail level ('summary' or 'full'). Default from config.
     """
-    return _get_client().list_space_pages(space_key, limit, start)  # pragma: no cover
+    resolved = _resolve_detail(detail, _config)  # pragma: no cover
+    raw = _get_client().list_space_pages(space_key, limit, start)  # pragma: no cover
+    if resolved == "summary":  # pragma: no cover
+        return format_pages(raw, _config)  # pragma: no cover
+    return raw  # pragma: no cover
 
 
 # --- Comment Tools (4 tools) ---
@@ -290,7 +353,7 @@ def confluence_comment_add(
 
 @mcp.tool()
 def confluence_comment_list(
-    page_id: str, limit: int = 25, start: int = 0
+    page_id: str, limit: int = 25, start: int = 0, detail: str | None = None
 ) -> Dict[str, Any]:  # pragma: no cover
     """List comments on a page.
 
@@ -298,8 +361,13 @@ def confluence_comment_list(
         page_id: Page ID
         limit: Max results
         start: Starting offset
+        detail: Response detail level ('summary' or 'full'). Default from config.
     """
-    return _get_client().list_comments(page_id, limit, start)  # pragma: no cover
+    resolved = _resolve_detail(detail, _config)  # pragma: no cover
+    raw = _get_client().list_comments(page_id, limit, start)  # pragma: no cover
+    if resolved == "summary":  # pragma: no cover
+        return format_comments(raw, _config)  # pragma: no cover
+    return raw  # pragma: no cover
 
 
 @mcp.tool()
@@ -346,7 +414,7 @@ def confluence_attachment_add(
 
 @mcp.tool()
 def confluence_attachment_list(
-    page_id: str, limit: int = 25, start: int = 0
+    page_id: str, limit: int = 25, start: int = 0, detail: str | None = None
 ) -> Dict[str, Any]:  # pragma: no cover
     """List attachments on a page.
 
@@ -354,18 +422,28 @@ def confluence_attachment_list(
         page_id: Page ID
         limit: Max results
         start: Starting offset
+        detail: Response detail level ('summary' or 'full'). Default from config.
     """
-    return _get_client().list_attachments(page_id, limit, start)  # pragma: no cover
+    resolved = _resolve_detail(detail, _config)  # pragma: no cover
+    raw = _get_client().list_attachments(page_id, limit, start)  # pragma: no cover
+    if resolved == "summary":  # pragma: no cover
+        return format_attachments(raw, _config)  # pragma: no cover
+    return raw  # pragma: no cover
 
 
 @mcp.tool()
-def confluence_attachment_get(attachment_id: str) -> Dict[str, Any]:  # pragma: no cover
+def confluence_attachment_get(attachment_id: str, detail: str | None = None) -> Dict[str, Any]:  # pragma: no cover
     """Get attachment metadata.
 
     Args:
         attachment_id: Attachment ID
+        detail: Response detail level ('summary' or 'full'). Default from config.
     """
-    return _get_client().get_attachment(attachment_id)  # pragma: no cover
+    resolved = _resolve_detail(detail, _config)  # pragma: no cover
+    raw = _get_client().get_attachment(attachment_id)  # pragma: no cover
+    if resolved == "summary":  # pragma: no cover
+        return format_attachment(raw, _config)  # pragma: no cover
+    return raw  # pragma: no cover
 
 
 @mcp.tool()
@@ -406,13 +484,18 @@ def confluence_label_remove(page_id: str, label: str) -> Dict[str, Any]:  # prag
 
 
 @mcp.tool()
-def confluence_label_get(page_id: str) -> Dict[str, Any]:  # pragma: no cover
+def confluence_label_get(page_id: str, detail: str | None = None) -> Dict[str, Any]:  # pragma: no cover
     """Get all labels on a page.
 
     Args:
         page_id: Page ID
+        detail: Response detail level ('summary' or 'full'). Default from config.
     """
-    return _get_client().get_labels(page_id)  # pragma: no cover
+    resolved = _resolve_detail(detail, _config)  # pragma: no cover
+    raw = _get_client().get_labels(page_id)  # pragma: no cover
+    if resolved == "summary":  # pragma: no cover
+        return format_labels(raw)  # pragma: no cover
+    return raw  # pragma: no cover
 
 
 # --- Content Conversion (1 tool) ---
@@ -436,19 +519,32 @@ def confluence_content_convert(
 
 
 @mcp.tool()
-def confluence_user_get(account_id: str) -> Dict[str, Any]:  # pragma: no cover
+def confluence_user_get(account_id: str, detail: str | None = None) -> Dict[str, Any]:  # pragma: no cover
     """Get user details by account ID.
 
     Args:
         account_id: Atlassian account ID
+        detail: Response detail level ('summary' or 'full'). Default from config.
     """
-    return _get_client().get_user(account_id)  # pragma: no cover
+    resolved = _resolve_detail(detail, _config)  # pragma: no cover
+    raw = _get_client().get_user(account_id)  # pragma: no cover
+    if resolved == "summary":  # pragma: no cover
+        return format_user(raw, _config)  # pragma: no cover
+    return raw  # pragma: no cover
 
 
 @mcp.tool()
-def confluence_user_current() -> Dict[str, Any]:  # pragma: no cover
-    """Get current authenticated user details."""
-    return _get_client().get_current_user()  # pragma: no cover
+def confluence_user_current(detail: str | None = None) -> Dict[str, Any]:  # pragma: no cover
+    """Get current authenticated user details.
+
+    Args:
+        detail: Response detail level ('summary' or 'full'). Default from config.
+    """
+    resolved = _resolve_detail(detail, _config)  # pragma: no cover
+    raw = _get_client().get_current_user()  # pragma: no cover
+    if resolved == "summary":  # pragma: no cover
+        return format_user(raw, _config)  # pragma: no cover
+    return raw  # pragma: no cover
 
 
 # --- Blog Tools (5 tools) ---
@@ -470,7 +566,7 @@ def confluence_blog_create(
 
 @mcp.tool()
 def confluence_blog_list(
-    space_key: str, limit: int = 25, start: int = 0
+    space_key: str, limit: int = 25, start: int = 0, detail: str | None = None
 ) -> Dict[str, Any]:  # pragma: no cover
     """List blog posts in a space.
 
@@ -478,18 +574,28 @@ def confluence_blog_list(
         space_key: Space key
         limit: Max results
         start: Starting offset
+        detail: Response detail level ('summary' or 'full'). Default from config.
     """
-    return _get_client().list_blogs(space_key, limit, start)  # pragma: no cover
+    resolved = _resolve_detail(detail, _config)  # pragma: no cover
+    raw = _get_client().list_blogs(space_key, limit, start)  # pragma: no cover
+    if resolved == "summary":  # pragma: no cover
+        return format_pages(raw, _config)  # pragma: no cover
+    return raw  # pragma: no cover
 
 
 @mcp.tool()
-def confluence_blog_get(blog_id: str) -> Dict[str, Any]:  # pragma: no cover
+def confluence_blog_get(blog_id: str, detail: str | None = None) -> Dict[str, Any]:  # pragma: no cover
     """Get blog post details.
 
     Args:
         blog_id: Blog post ID
+        detail: Response detail level ('summary' or 'full'). Default from config.
     """
-    return _get_client().get_blog(blog_id)  # pragma: no cover
+    resolved = _resolve_detail(detail, _config)  # pragma: no cover
+    raw = _get_client().get_blog(blog_id)  # pragma: no cover
+    if resolved == "summary":  # pragma: no cover
+        return format_page(raw, _config)  # pragma: no cover
+    return raw  # pragma: no cover
 
 
 @mcp.tool()
@@ -557,14 +663,14 @@ def confluence_macro_render(
     """Render a Confluence macro as storage-format XHTML.
 
     Returns XHTML that can be embedded in page body content. Works with any
-    macro name — built-in (code, toc, panel) or third-party plugins.
+    macro name -- built-in (code, toc, panel) or third-party plugins.
 
     Args:
         macro_name: Macro identifier (e.g., "code", "toc", "panel", "info",
                     "warning", "expand", "note", "excerpt", or any plugin macro)
         parameters: Optional macro parameters as key-value pairs
         body: Optional macro body content
-        body_type: Body wrapping — "plain-text-body" for code/noformat (CDATA),
+        body_type: Body wrapping -- "plain-text-body" for code/noformat (CDATA),
                    "rich-text-body" for panel/expand/info (XHTML). Default: "rich-text-body"
 
     Examples:
@@ -605,8 +711,9 @@ def confluence_content_from_markdown(markdown: str) -> Dict[str, Any]:  # pragma
 def main() -> None:
     """Main entry point for the Confluence MCP server."""
     try:
-        global _client
+        global _client, _config
         config = ConfluenceConfig()  # type: ignore[call-arg]
+        _config = config
         _client = ConfluenceClient(config)
 
         from importlib.metadata import version as pkg_version

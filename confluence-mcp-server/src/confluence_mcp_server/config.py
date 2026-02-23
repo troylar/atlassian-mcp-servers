@@ -31,6 +31,13 @@ class ConfluenceConfig(BaseSettings):
     auth_type: Optional[AuthType] = Field(default=None, description="Auth type: 'pat' or 'cloud'")
     timeout: int = Field(default=30, description="HTTP request timeout in seconds", gt=0)
     verify_ssl: bool = Field(default=True, description="Verify SSL certificates")
+    default_detail: str = Field(
+        default="summary", description="Default response detail level: 'summary' or 'full'"
+    )
+    max_description_length: int = Field(
+        default=500, description="Max description chars in summary mode. 0=no limit", ge=0
+    )
+    include_links: bool = Field(default=False, description="Include self/web URLs in responses")
 
     model_config = SettingsConfigDict(
         env_prefix="CONFLUENCE_MCP_",
