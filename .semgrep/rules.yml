@@ -1,0 +1,75 @@
+rules:
+  - id: no-verify-false
+    patterns:
+      - pattern-either:
+          - pattern: verify=False
+          - pattern: verify_ssl=False
+    message: >
+      TLS verification disabled. This violates OWASP ASVS V9 (Communication Security).
+      Never disable certificate verification in production code.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: V9 - Communication Security
+      cwe: "CWE-295: Improper Certificate Validation"
+
+  - id: no-eval-exec
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: exec(...)
+    message: >
+      Dynamic code execution detected. This violates OWASP ASVS V5 (Input Validation).
+      Never use eval() or exec() with any input.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: V5 - Input Validation
+      cwe: "CWE-95: Improper Neutralization of Directives in Dynamically Evaluated Code"
+
+  - id: no-hardcoded-tokens
+    patterns:
+      - pattern-either:
+          - pattern: $VAR = "Bearer ..."
+          - pattern: $VAR = "Basic ..."
+          - pattern: $VAR = "token_..."
+          - pattern: $VAR = "sk-..."
+          - pattern: $VAR = "ghp_..."
+          - pattern: $VAR = "glpat-..."
+    message: >
+      Possible hardcoded credential detected. This violates OWASP ASVS V2 (Authentication).
+      All secrets must come from environment variables via pydantic-settings.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: V2 - Authentication
+      cwe: "CWE-798: Use of Hard-coded Credentials"
+
+  - id: no-shell-true
+    pattern-either:
+      - pattern: subprocess.call(..., shell=True, ...)
+      - pattern: subprocess.run(..., shell=True, ...)
+      - pattern: subprocess.Popen(..., shell=True, ...)
+    message: >
+      subprocess with shell=True detected. This violates OWASP ASVS V5 (Input Validation).
+      Use shell=False and pass arguments as a list.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: V5 - Input Validation
+      cwe: "CWE-78: Improper Neutralization of Special Elements used in an OS Command"
+
+  - id: no-pickle-loads
+    pattern: pickle.loads(...)
+    message: >
+      pickle.loads() on untrusted data is a deserialization vulnerability.
+      Use JSON or other safe serialization formats.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: V5 - Input Validation
+      cwe: "CWE-502: Deserialization of Untrusted Data"
