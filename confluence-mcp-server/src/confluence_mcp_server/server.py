@@ -220,7 +220,7 @@ def confluence_search(
     return _get_client().search_content(query, space_key, content_type, limit, start)  # pragma: no cover
 
 
-# --- Space Tools (3 tools) ---
+# --- Space Tools (4 tools) ---
 
 
 @mcp.tool()
@@ -256,6 +256,20 @@ def confluence_space_create(
         description: Optional space description
     """
     return _get_client().create_space(key, name, description)  # pragma: no cover
+
+
+@mcp.tool()
+def confluence_space_pages(
+    space_key: str, limit: int = 25, start: int = 0
+) -> Dict[str, Any]:  # pragma: no cover
+    """List all pages in a Confluence space.
+
+    Args:
+        space_key: Space key (e.g., "DEV")
+        limit: Max results (default: 25)
+        start: Starting offset for pagination
+    """
+    return _get_client().list_space_pages(space_key, limit, start)  # pragma: no cover
 
 
 # --- Comment Tools (4 tools) ---

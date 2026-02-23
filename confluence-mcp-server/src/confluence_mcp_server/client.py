@@ -323,6 +323,17 @@ class ConfluenceClient:
         except httpx.TimeoutException:
             raise ValueError("Timeout creating space")
 
+    def list_space_pages(self, space_key: str, limit: int = 25, start: int = 0) -> Dict[str, Any]:
+        url = f"{self._api_base}/content"
+        params = {"type": "page", "spaceKey": space_key, "limit": limit, "start": start}
+        try:
+            response = self._request("GET", url, params=params)
+            if response.status_code != 200:
+                self._handle_error(response)
+            return response.json()  # type: ignore[no-any-return]
+        except httpx.TimeoutException:
+            raise ValueError(f"Timeout listing pages in space {space_key}")
+
     # Comment operations
 
     def add_comment(self, page_id: str, body: str, representation: str = "storage") -> Dict[str, Any]:
