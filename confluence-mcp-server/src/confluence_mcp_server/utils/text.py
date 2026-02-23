@@ -6,10 +6,13 @@ elements with CDATA-wrapped bodies.
 """
 
 from typing import Any, Optional
+from urllib.parse import urlparse
 from xml.sax.saxutils import escape as xml_escape
 
 import mistune
 from mistune import HTMLRenderer
+
+_DANGEROUS_SCHEMES = frozenset({"javascript", "data", "vbscript"})
 
 
 class ConfluenceStorageRenderer(HTMLRenderer):
@@ -53,6 +56,17 @@ class ConfluenceStorageRenderer(HTMLRenderer):
 
     def block_quote(self, text: str) -> str:
         return f"<blockquote>{text}</blockquote>\n"
+
+    def link(self, text: str, url: str, title: Optional[str] = None) -> str:
+        """Render links with dangerous URI scheme rejection."""
+        if url:
+            parsed = urlparse(url.strip())
+            if parsed.scheme.lower() in _DANGEROUS_SCHEMES:
+                return xml_escape(text)
+        safe_url = xml_escape(url)
+        if title:
+            return f'<a href="{safe_url}" title="{xml_escape(title)}">{text}</a>'
+        return f'<a href="{safe_url}">{text}</a>'
 
 
 def _make_confluence_markdown() -> mistune.Markdown:

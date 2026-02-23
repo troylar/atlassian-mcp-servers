@@ -1,7 +1,8 @@
 """Tests for JiraClient."""
 
 import base64
-from unittest.mock import MagicMock, mock_open, patch
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
@@ -875,32 +876,36 @@ class TestUserOperations:
 
 
 class TestAttachmentOperations:
-    def test_add_attachment_success(self) -> None:
+    def test_add_attachment_success(self, tmp_path: Path) -> None:
         client = JiraClient(_make_config())
+        f = tmp_path / "test.txt"
+        f.write_bytes(b"file content")
         mock_resp = _mock_response(201, [{"id": "10000", "filename": "test.txt"}])
         with patch("httpx.Client") as mock_client_cls:
             mock_ctx = MagicMock()
             mock_client_cls.return_value.__enter__ = MagicMock(return_value=mock_ctx)
             mock_client_cls.return_value.__exit__ = MagicMock(return_value=False)
             mock_ctx.post.return_value = mock_resp
-            with patch("builtins.open", mock_open(read_data=b"file content")):
-                result = client.add_attachment("TEST-1", "/path/to/test.txt")
+            result = client.add_attachment("TEST-1", str(f))
         assert result[0]["filename"] == "test.txt"
 
-    def test_add_attachment_with_custom_filename(self) -> None:
+    def test_add_attachment_with_custom_filename(self, tmp_path: Path) -> None:
         client = JiraClient(_make_config())
+        f = tmp_path / "test.txt"
+        f.write_bytes(b"file content")
         mock_resp = _mock_response(200, [{"id": "10000", "filename": "custom.txt"}])
         with patch("httpx.Client") as mock_client_cls:
             mock_ctx = MagicMock()
             mock_client_cls.return_value.__enter__ = MagicMock(return_value=mock_ctx)
             mock_client_cls.return_value.__exit__ = MagicMock(return_value=False)
             mock_ctx.post.return_value = mock_resp
-            with patch("builtins.open", mock_open(read_data=b"file content")):
-                result = client.add_attachment("TEST-1", "/path/to/test.txt", filename="custom.txt")
+            result = client.add_attachment("TEST-1", str(f), filename="custom.txt")
         assert result[0]["filename"] == "custom.txt"
 
-    def test_add_attachment_error(self) -> None:
+    def test_add_attachment_error(self, tmp_path: Path) -> None:
         client = JiraClient(_make_config())
+        f = tmp_path / "test.txt"
+        f.write_bytes(b"data")
         mock_resp = _mock_response(403)
         mock_resp.request.url = "https://jira.example.com/rest/api/2/issue/TEST-1/attachments"
         with patch("httpx.Client") as mock_client_cls:
@@ -908,30 +913,25 @@ class TestAttachmentOperations:
             mock_client_cls.return_value.__enter__ = MagicMock(return_value=mock_ctx)
             mock_client_cls.return_value.__exit__ = MagicMock(return_value=False)
             mock_ctx.post.return_value = mock_resp
-            with patch("builtins.open", mock_open(read_data=b"data")):
-                with pytest.raises(ValueError, match="Permission denied"):
-                    client.add_attachment("TEST-1", "/path/to/test.txt")
+            with pytest.raises(ValueError, match="Permission denied"):
+                client.add_attachment("TEST-1", str(f))
 
-    def test_add_attachment_timeout(self) -> None:
+    def test_add_attachment_timeout(self, tmp_path: Path) -> None:
         client = JiraClient(_make_config())
+        f = tmp_path / "test.txt"
+        f.write_bytes(b"data")
         with patch("httpx.Client") as mock_client_cls:
             mock_ctx = MagicMock()
             mock_client_cls.return_value.__enter__ = MagicMock(return_value=mock_ctx)
             mock_client_cls.return_value.__exit__ = MagicMock(return_value=False)
             mock_ctx.post.side_effect = httpx.TimeoutException("timeout")
-            with patch("builtins.open", mock_open(read_data=b"data")):
-                with pytest.raises(ValueError, match="Timeout adding attachment"):
-                    client.add_attachment("TEST-1", "/path/to/test.txt")
+            with pytest.raises(ValueError, match="Timeout adding attachment"):
+                client.add_attachment("TEST-1", str(f))
 
     def test_add_attachment_file_not_found(self) -> None:
         client = JiraClient(_make_config())
-        with patch("httpx.Client") as mock_client_cls:
-            mock_ctx = MagicMock()
-            mock_client_cls.return_value.__enter__ = MagicMock(return_value=mock_ctx)
-            mock_client_cls.return_value.__exit__ = MagicMock(return_value=False)
-            with patch("builtins.open", side_effect=FileNotFoundError()):
-                with pytest.raises(ValueError, match="File not found"):
-                    client.add_attachment("TEST-1", "/nonexistent/file.txt")
+        with pytest.raises(ValueError, match="File not found"):
+            client.add_attachment("TEST-1", "/nonexistent/file.txt")
 
     def test_get_attachment_success(self) -> None:
         client = JiraClient(_make_config())

@@ -2,10 +2,12 @@
 
 import base64
 from typing import Any, Dict, List
+from urllib.parse import quote as url_quote
 
 import httpx
 
 from bitbucket_mcp_server.config import AuthType, BitbucketConfig
+from bitbucket_mcp_server.validators import _safe_error_text, validate_url
 
 
 class BitbucketClient:
@@ -49,7 +51,7 @@ class BitbucketClient:
         elif status == 404:
             raise ValueError("Resource not found.")
         elif status == 409:
-            raise ValueError(f"Conflict: {response.text[:200]}")
+            raise ValueError(f"Conflict: {_safe_error_text(response.text)}")
         elif status == 429:
             raise ValueError("Rate limit exceeded.")
         elif status == 400:
@@ -62,19 +64,23 @@ class BitbucketClient:
             except (ValueError, KeyError) as e:
                 if "Validation error" in str(e):
                     raise
-            raise ValueError(f"Bad request: {response.text[:200]}")
+            raise ValueError(f"Bad request: {_safe_error_text(response.text)}")
         else:
-            raise ValueError(f"Bitbucket API error ({status}): {response.text[:200]}")
+            raise ValueError(f"Bitbucket API error ({status}): {_safe_error_text(response.text)}")
 
     def _request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
         with httpx.Client(timeout=self.timeout, verify=self.verify_ssl) as client:
             return client.request(method, url, headers=self._get_headers(), **kwargs)
 
     def _dc_project_repo_url(self, project: str, repo: str) -> str:
-        return f"{self._api_base}/projects/{project}/repos/{repo}"
+        safe_project = url_quote(project, safe="")
+        safe_repo = url_quote(repo, safe="")
+        return f"{self._api_base}/projects/{safe_project}/repos/{safe_repo}"
 
     def _cloud_repo_url(self, repo_slug: str) -> str:
-        return f"{self._api_base}/repositories/{self._workspace}/{repo_slug}"
+        safe_workspace = url_quote(self._workspace or "", safe="")
+        safe_slug = url_quote(repo_slug, safe="")
+        return f"{self._api_base}/repositories/{safe_workspace}/{safe_slug}"
 
     # Health check
 
@@ -111,7 +117,7 @@ class BitbucketClient:
             raise ValueError("Timeout listing projects")
 
     def get_project(self, project_key: str) -> Dict[str, Any]:
-        url = f"{self._api_base}/projects/{project_key}"
+        url = f"{self._api_base}/projects/{url_quote(project_key, safe='')}"
         try:
             response = self._request("GET", url)
             if response.status_code != 200:
@@ -137,7 +143,8 @@ class BitbucketClient:
 
     def list_repos(self, project: str, limit: int = 25, start: int = 0) -> Dict[str, Any]:
         if self._auth_type == AuthType.CLOUD:
-            url = f"{self._api_base}/repositories/{self._workspace}"
+            safe_workspace = url_quote(self._workspace or "", safe="")
+            url = f"{self._api_base}/repositories/{safe_workspace}"
             params: Dict[str, Any] = {"pagelen": limit, "page": (start // limit) + 1 if limit else 1}
         else:
             url = f"{self._api_base}/projects/{project}/repos"
@@ -165,7 +172,8 @@ class BitbucketClient:
 
     def create_repo(self, project: str, name: str, description: str = "") -> Dict[str, Any]:
         if self._auth_type == AuthType.CLOUD:
-            url = f"{self._api_base}/repositories/{self._workspace}/{name.lower()}"
+            safe_workspace = url_quote(self._workspace or "", safe="")
+            url = f"{self._api_base}/repositories/{safe_workspace}/{url_quote(name.lower(), safe='')}"
             payload: Dict[str, Any] = {"scm": "git"}
             if description:
                 payload["description"] = description
@@ -246,7 +254,7 @@ class BitbucketClient:
 
     def delete_branch(self, project: str, repo: str, name: str) -> None:
         if self._auth_type == AuthType.CLOUD:
-            url = f"{self._cloud_repo_url(repo)}/refs/branches/{name}"
+            url = f"{self._cloud_repo_url(repo)}/refs/branches/{url_quote(name, safe='')}"
             try:
                 response = self._request("DELETE", url)
                 if response.status_code != 204:
@@ -558,14 +566,15 @@ class BitbucketClient:
             raise ValueError(f"Timeout updating PR comment {comment_id}")
 
     def delete_pr_comment(self, project: str, repo: str, pr_id: int, comment_id: int) -> None:
+        params: Dict[str, Any] = {}
         if self._auth_type == AuthType.CLOUD:
             url = f"{self._cloud_repo_url(repo)}/pullrequests/{pr_id}/comments/{comment_id}"
         else:
             url = f"{self._dc_project_repo_url(project, repo)}/pull-requests/{pr_id}/comments/{comment_id}"
             comment = self._request("GET", url).json()
-            url = f"{url}?version={comment.get('version', 0)}"
+            params["version"] = comment.get("version", 0)
         try:
-            response = self._request("DELETE", url)
+            response = self._request("DELETE", url, params=params)
             if response.status_code != 204:
                 self._handle_error(response)
         except httpx.TimeoutException:
@@ -612,14 +621,15 @@ class BitbucketClient:
     # File operations
 
     def browse_files(self, project: str, repo: str, path: str = "", at: str | None = None) -> Dict[str, Any]:
+        safe_path = url_quote(path, safe="/") if path else ""
         if self._auth_type == AuthType.CLOUD:
             url = f"{self._cloud_repo_url(repo)}/src"
             if at:
-                url = f"{url}/{at}"
-            if path:
-                url = f"{url}/{path}"
+                url = f"{url}/{url_quote(at, safe='')}"
+            if safe_path:
+                url = f"{url}/{safe_path}"
         else:
-            url = f"{self._dc_project_repo_url(project, repo)}/browse/{path}"
+            url = f"{self._dc_project_repo_url(project, repo)}/browse/{safe_path}"
         params: Dict[str, Any] = {}
         if at and self._auth_type != AuthType.CLOUD:
             params["at"] = at
@@ -632,13 +642,14 @@ class BitbucketClient:
             raise ValueError(f"Timeout browsing files at {path}")
 
     def get_file_content(self, project: str, repo: str, path: str, at: str | None = None) -> Dict[str, Any]:
+        safe_path = url_quote(path, safe="/")
         if self._auth_type == AuthType.CLOUD:
             url = f"{self._cloud_repo_url(repo)}/src"
             if at:
-                url = f"{url}/{at}"
-            url = f"{url}/{path}"
+                url = f"{url}/{url_quote(at, safe='')}"
+            url = f"{url}/{safe_path}"
         else:
-            url = f"{self._dc_project_repo_url(project, repo)}/raw/{path}"
+            url = f"{self._dc_project_repo_url(project, repo)}/raw/{safe_path}"
         params: Dict[str, Any] = {}
         if at and self._auth_type != AuthType.CLOUD:
             params["at"] = at
@@ -687,10 +698,11 @@ class BitbucketClient:
             raise ValueError("Timeout creating tag")
 
     def delete_tag(self, project: str, repo: str, name: str) -> None:
+        safe_name = url_quote(name, safe="")
         if self._auth_type == AuthType.CLOUD:
-            url = f"{self._cloud_repo_url(repo)}/refs/tags/{name}"
+            url = f"{self._cloud_repo_url(repo)}/refs/tags/{safe_name}"
         else:
-            url = f"{self._dc_project_repo_url(project, repo)}/tags/{name}"
+            url = f"{self._dc_project_repo_url(project, repo)}/tags/{safe_name}"
         try:
             response = self._request("DELETE", url)
             if response.status_code != 204:
@@ -715,6 +727,7 @@ class BitbucketClient:
 
     def create_webhook(self, project: str, repo: str, name: str, url_target: str,
                        events: List[str]) -> Dict[str, Any]:
+        validate_url(url_target, "url_target")
         if self._auth_type == AuthType.CLOUD:
             api_url = f"{self._cloud_repo_url(repo)}/hooks"
             payload: Dict[str, Any] = {
@@ -755,9 +768,10 @@ class BitbucketClient:
 
     def get_build_status(self, commit_id: str) -> Dict[str, Any]:
         if self._auth_type == AuthType.CLOUD:
-            url = f"{self._api_base}/repositories/{self._workspace}/commit/{commit_id}/statuses"
+            safe_workspace = url_quote(self._workspace or "", safe="")
+            url = f"{self._api_base}/repositories/{safe_workspace}/commit/{url_quote(commit_id, safe='')}/statuses"
         else:
-            url = f"{self.base_url}/rest/build-status/1.0/commits/{commit_id}"
+            url = f"{self.base_url}/rest/build-status/1.0/commits/{url_quote(commit_id, safe='')}"
         try:
             response = self._request("GET", url)
             if response.status_code != 200:
@@ -768,10 +782,13 @@ class BitbucketClient:
 
     def set_build_status(self, commit_id: str, state: str, key: str, url_target: str,
                          description: str = "") -> Dict[str, Any]:
+        validate_url(url_target, "url_target")
         if self._auth_type == AuthType.CLOUD:
-            api_url = f"{self._api_base}/repositories/{self._workspace}/commit/{commit_id}/statuses/build"
+            safe_workspace = url_quote(self._workspace or "", safe="")
+            safe_commit = url_quote(commit_id, safe="")
+            api_url = f"{self._api_base}/repositories/{safe_workspace}/commit/{safe_commit}/statuses/build"
         else:
-            api_url = f"{self.base_url}/rest/build-status/1.0/commits/{commit_id}"
+            api_url = f"{self.base_url}/rest/build-status/1.0/commits/{url_quote(commit_id, safe='')}"
         payload: Dict[str, Any] = {
             "state": state,
             "key": key,
@@ -793,10 +810,12 @@ class BitbucketClient:
 
     def get_diff(self, project: str, repo: str, from_ref: str, to_ref: str) -> Dict[str, Any]:
         if self._auth_type == AuthType.CLOUD:
-            url = f"{self._cloud_repo_url(repo)}/diff/{from_ref}..{to_ref}"
+            safe_from = url_quote(from_ref, safe="")
+            safe_to = url_quote(to_ref, safe="")
+            url = f"{self._cloud_repo_url(repo)}/diff/{safe_from}..{safe_to}"
         else:
             url = f"{self._dc_project_repo_url(project, repo)}/compare/diff"
-            url = f"{url}?from={from_ref}&to={to_ref}"
+            url = f"{url}?from={url_quote(from_ref, safe='')}&to={url_quote(to_ref, safe='')}"
         try:
             response = self._request("GET", url)
             if response.status_code != 200:

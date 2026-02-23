@@ -3,11 +3,13 @@
 import base64
 import re
 from typing import Any, Dict, List, Optional
+from urllib.parse import quote as url_quote
 from xml.sax.saxutils import escape as xml_escape
 
 import httpx
 
 from confluence_mcp_server.config import AuthType, ConfluenceConfig
+from confluence_mcp_server.validators import _safe_error_text, sanitize_cql_value, validate_file_path
 
 
 class ConfluenceClient:
@@ -61,9 +63,9 @@ class ConfluenceClient:
             except (ValueError, KeyError) as e:
                 if "Validation error" in str(e):
                     raise
-            raise ValueError(f"Bad request: {response.text[:200]}")
+            raise ValueError(f"Bad request: {_safe_error_text(response.text)}")
         else:
-            raise ValueError(f"Confluence API error ({status}): {response.text[:200]}")
+            raise ValueError(f"Confluence API error ({status}): {_safe_error_text(response.text)}")
 
     def _request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
         with httpx.Client(timeout=self.timeout, verify=self.verify_ssl) as client:
@@ -177,7 +179,8 @@ class ConfluenceClient:
             raise ValueError(f"Timeout deleting page {page_id}")
 
     def move_page(self, page_id: str, target_id: str, position: str = "append") -> Dict[str, Any]:
-        url = f"{self._api_base}/content/{page_id}/move/{position}/{target_id}"
+        safe_position = url_quote(position, safe="")
+        url = f"{self._api_base}/content/{page_id}/move/{safe_position}/{target_id}"
         try:
             response = self._request("PUT", url)
             if response.status_code != 200:
@@ -273,11 +276,11 @@ class ConfluenceClient:
         limit: int = 25,
         start: int = 0,
     ) -> Dict[str, Any]:
-        cql_parts = [f'text ~ "{query}"']
+        cql_parts = [f'text ~ "{sanitize_cql_value(query)}"']
         if space_key:
-            cql_parts.append(f'space = "{space_key}"')
+            cql_parts.append(f'space = "{sanitize_cql_value(space_key)}"')
         if content_type:
-            cql_parts.append(f'type = "{content_type}"')
+            cql_parts.append(f'type = "{sanitize_cql_value(content_type)}"')
         cql = " AND ".join(cql_parts)
         return self.search_cql(cql=cql, limit=limit, start=start)
 
@@ -375,23 +378,24 @@ class ConfluenceClient:
     # Attachment operations
 
     def add_attachment(self, page_id: str, file_path: str, filename: str | None = None) -> Dict[str, Any]:
+        safe_path = validate_file_path(file_path)
         url = f"{self._api_base}/content/{page_id}/child/attachment"
         headers = self._get_headers()
         headers["X-Atlassian-Token"] = "nocheck"
         del headers["Content-Type"]
         import os
 
-        actual_filename = filename or os.path.basename(file_path)
+        actual_filename = filename or os.path.basename(safe_path)
         try:
             with httpx.Client(timeout=self.timeout, verify=self.verify_ssl) as client:
-                with open(file_path, "rb") as f:
+                with open(safe_path, "rb") as f:
                     response = client.post(url, headers=headers, files={"file": (actual_filename, f)})
                     if response.status_code not in (200, 201):
                         self._handle_error(response)
                     return response.json()  # type: ignore[no-any-return]
         except httpx.TimeoutException:
             raise ValueError(f"Timeout adding attachment to page {page_id}")
-        except FileNotFoundError:
+        except FileNotFoundError:  # pragma: no cover – validate_file_path catches first
             raise ValueError(f"File not found: {file_path}")
 
     def list_attachments(self, page_id: str, limit: int = 25, start: int = 0) -> Dict[str, Any]:
@@ -438,7 +442,8 @@ class ConfluenceClient:
             raise ValueError(f"Timeout adding label to page {page_id}")
 
     def remove_label(self, page_id: str, label: str) -> None:
-        url = f"{self._api_base}/content/{page_id}/label/{label}"
+        safe_label = url_quote(label, safe="")
+        url = f"{self._api_base}/content/{page_id}/label/{safe_label}"
         try:
             response = self._request("DELETE", url)
             if response.status_code != 204:
@@ -459,7 +464,8 @@ class ConfluenceClient:
     # Content conversion
 
     def convert_content(self, value: str, from_repr: str, to_repr: str) -> Dict[str, Any]:
-        url = f"{self._api_base}/contentbody/convert/{to_repr}"
+        safe_to_repr = url_quote(to_repr, safe="")
+        url = f"{self._api_base}/contentbody/convert/{safe_to_repr}"
         payload = {"value": value, "representation": from_repr}
         try:
             response = self._request("POST", url, json=payload)
@@ -596,8 +602,8 @@ class ConfluenceClient:
             body_type: How to wrap the body — "plain-text-body" (CDATA-wrapped,
                        for code/noformat) or "rich-text-body" (XHTML content,
                        for panel/expand/info). Default: "rich-text-body".
-                       Note: with "rich-text-body", the body is included as-is
-                       (no escaping). Caller must ensure body is trusted XHTML.
+                       Note: with "rich-text-body", the body is XML-escaped to
+                       prevent XSS. Raw XHTML is not supported.
 
         Returns:
             Dict with "xhtml" (the rendered macro markup) and "macro_name".
@@ -629,7 +635,7 @@ class ConfluenceClient:
                 safe_body = body.replace("]]>", "]]]]><![CDATA[>")
                 parts.append(f"<ac:plain-text-body><![CDATA[{safe_body}]]></ac:plain-text-body>")
             else:
-                parts.append(f"<ac:rich-text-body>{body}</ac:rich-text-body>")
+                parts.append(f"<ac:rich-text-body>{xml_escape(body)}</ac:rich-text-body>")
 
         parts.append("</ac:structured-macro>")
         xhtml = "".join(parts)

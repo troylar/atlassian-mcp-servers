@@ -44,6 +44,16 @@ class TestMarkdownToStorage:
         result = markdown_to_storage("[click](https://example.com)")
         assert '<a href="https://example.com">click</a>' in result
 
+    def test_link_javascript_rejected(self) -> None:
+        result = markdown_to_storage("[click](javascript:alert(1))")
+        assert "javascript:" not in result
+        assert "click" in result
+
+    def test_link_with_title(self) -> None:
+        result = markdown_to_storage('[click](https://example.com "My Title")')
+        assert 'title="My Title"' in result
+        assert 'href="https://example.com"' in result
+
     def test_image(self) -> None:
         result = markdown_to_storage("![alt](https://img.example.com/pic.png)")
         assert '<ac:image><ri:url ri:value="https://img.example.com/pic.png"/></ac:image>' in result

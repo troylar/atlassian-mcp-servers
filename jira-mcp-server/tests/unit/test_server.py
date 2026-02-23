@@ -91,7 +91,7 @@ class TestMain:
         ):
             main()
         captured = capsys.readouterr()
-        assert "DISABLED" in captured.out
+        assert "DISABLED" in captured.err
 
     def test_main_config_error_exits(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("JIRA_MCP_URL", raising=False)

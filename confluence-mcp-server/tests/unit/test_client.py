@@ -1,8 +1,9 @@
 """Tests for ConfluenceClient."""
 
 import base64
+from pathlib import Path
 from typing import Any, Dict
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
@@ -751,10 +752,11 @@ class TestDeleteComment:
 
 
 class TestAddAttachment:
-    def test_success(self) -> None:
+    def test_success(self, tmp_path: Path) -> None:
         config = _make_config(auth_type=AuthType.PAT)
         client = ConfluenceClient(config)
-        mock_file = mock_open(read_data=b"content")
+        f = tmp_path / "file.txt"
+        f.write_bytes(b"content")
         mock_response = MagicMock()
         mock_response.status_code = 201
         mock_response.json.return_value = {"id": "att1"}
@@ -764,14 +766,15 @@ class TestAddAttachment:
         mock_http_client.__exit__ = MagicMock(return_value=False)
         mock_http_client.post.return_value = mock_response
 
-        with patch("builtins.open", mock_file), patch("httpx.Client", return_value=mock_http_client):
-            result = client.add_attachment("1", "/path/to/file.txt")
+        with patch("httpx.Client", return_value=mock_http_client):
+            result = client.add_attachment("1", str(f))
         assert result == {"id": "att1"}
 
-    def test_custom_filename(self) -> None:
+    def test_custom_filename(self, tmp_path: Path) -> None:
         config = _make_config(auth_type=AuthType.PAT)
         client = ConfluenceClient(config)
-        mock_file = mock_open(read_data=b"content")
+        f = tmp_path / "file.txt"
+        f.write_bytes(b"content")
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"id": "att1"}
@@ -781,43 +784,38 @@ class TestAddAttachment:
         mock_http_client.__exit__ = MagicMock(return_value=False)
         mock_http_client.post.return_value = mock_response
 
-        with patch("builtins.open", mock_file), patch("httpx.Client", return_value=mock_http_client):
-            result = client.add_attachment("1", "/path/to/file.txt", filename="custom.txt")
+        with patch("httpx.Client", return_value=mock_http_client):
+            result = client.add_attachment("1", str(f), filename="custom.txt")
         assert result == {"id": "att1"}
         call_kwargs = mock_http_client.post.call_args[1]
         file_tuple = call_kwargs["files"]["file"]
         assert file_tuple[0] == "custom.txt"
 
-    def test_timeout(self) -> None:
+    def test_timeout(self, tmp_path: Path) -> None:
         config = _make_config(auth_type=AuthType.PAT)
         client = ConfluenceClient(config)
-        mock_file = mock_open(read_data=b"content")
+        f = tmp_path / "file.txt"
+        f.write_bytes(b"content")
         mock_http_client = MagicMock()
         mock_http_client.__enter__ = MagicMock(return_value=mock_http_client)
         mock_http_client.__exit__ = MagicMock(return_value=False)
         mock_http_client.post.side_effect = httpx.TimeoutException("timeout")
 
-        with patch("builtins.open", mock_file), patch("httpx.Client", return_value=mock_http_client):
+        with patch("httpx.Client", return_value=mock_http_client):
             with pytest.raises(ValueError, match="Timeout adding attachment"):
-                client.add_attachment("1", "/path/to/file.txt")
+                client.add_attachment("1", str(f))
 
     def test_file_not_found(self) -> None:
         config = _make_config(auth_type=AuthType.PAT)
         client = ConfluenceClient(config)
-        mock_http_client = MagicMock()
-        mock_http_client.__enter__ = MagicMock(return_value=mock_http_client)
-        mock_http_client.__exit__ = MagicMock(return_value=False)
+        with pytest.raises(ValueError, match="File not found"):
+            client.add_attachment("1", "/nonexistent/file.txt")
 
-        with patch("builtins.open", side_effect=FileNotFoundError), patch(
-            "httpx.Client", return_value=mock_http_client
-        ):
-            with pytest.raises(ValueError, match="File not found"):
-                client.add_attachment("1", "/nonexistent/file.txt")
-
-    def test_error_response(self) -> None:
+    def test_error_response(self, tmp_path: Path) -> None:
         config = _make_config(auth_type=AuthType.PAT)
         client = ConfluenceClient(config)
-        mock_file = mock_open(read_data=b"content")
+        f = tmp_path / "file.txt"
+        f.write_bytes(b"content")
         mock_response = MagicMock()
         mock_response.status_code = 403
         mock_response.text = "Forbidden"
@@ -827,9 +825,9 @@ class TestAddAttachment:
         mock_http_client.__exit__ = MagicMock(return_value=False)
         mock_http_client.post.return_value = mock_response
 
-        with patch("builtins.open", mock_file), patch("httpx.Client", return_value=mock_http_client):
+        with patch("httpx.Client", return_value=mock_http_client):
             with pytest.raises(ValueError, match="Permission denied"):
-                client.add_attachment("1", "/path/to/file.txt")
+                client.add_attachment("1", str(f))
 
 
 class TestListAttachments:
@@ -1336,7 +1334,7 @@ class TestRenderMacro:
         client = self._make_client()
         result = client.render_macro("panel", body="<p>Panel content</p>")
         xhtml = result["xhtml"]
-        assert "<ac:rich-text-body><p>Panel content</p></ac:rich-text-body>" in xhtml
+        assert "<ac:rich-text-body>&lt;p&gt;Panel content&lt;/p&gt;</ac:rich-text-body>" in xhtml
 
     def test_macro_with_params_and_body(self) -> None:
         client = self._make_client()
@@ -1437,7 +1435,7 @@ class TestRenderMacro:
     def test_rich_text_body_default(self) -> None:
         client = self._make_client()
         result = client.render_macro("expand", body="<p>content</p>")
-        assert "<ac:rich-text-body>" in result["xhtml"]
+        assert "<ac:rich-text-body>&lt;p&gt;content&lt;/p&gt;</ac:rich-text-body>" in result["xhtml"]
         assert "<ac:plain-text-body>" not in result["xhtml"]
 
 
