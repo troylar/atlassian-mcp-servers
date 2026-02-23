@@ -1,5 +1,6 @@
 """FastMCP 3 server entry point for Confluence MCP Server."""
 
+import logging
 import sys
 from typing import Any, Dict, List, Optional
 
@@ -20,6 +21,8 @@ from confluence_mcp_server.formatters import (
     format_spaces,
     format_user,
 )
+
+logger = logging.getLogger(__name__)
 
 mcp = FastMCP("confluence-mcp-server")
 
@@ -713,19 +716,25 @@ def main() -> None:
     try:
         global _client, _config
         config = ConfluenceConfig()  # type: ignore[call-arg]
+
+        logging.basicConfig(
+            level=getattr(logging, config.log_level),
+            format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+            stream=sys.stderr,
+        )
+
         _config = config
         _client = ConfluenceClient(config)
 
         from importlib.metadata import version as pkg_version
 
         _version = pkg_version("atlassian-confluence-mcp")
-        print(f"Starting Confluence MCP Server v{_version}...", file=sys.stderr)
-        print(f"Confluence URL: {config.url}", file=sys.stderr)
-        print(f"Auth Type: {config.auth_type.value if config.auth_type else 'auto'}", file=sys.stderr)
-        print(f"Timeout: {config.timeout}s", file=sys.stderr)
-        print(f"SSL Verification: {'Enabled' if config.verify_ssl else 'DISABLED'}", file=sys.stderr)
-        print(file=sys.stderr)
-        print("Server ready! Use MCP client to interact with Confluence.", file=sys.stderr)
+        logger.info("Starting Confluence MCP Server v%s...", _version)
+        logger.info("Confluence URL: %s", config.url)
+        logger.info("Auth Type: %s", config.auth_type.value if config.auth_type else "auto")
+        logger.info("Timeout: %ss", config.timeout)
+        logger.info("SSL Verification: %s", "Enabled" if config.verify_ssl else "DISABLED")
+        logger.info("Server ready! Use MCP client to interact with Confluence.")
 
         mcp.run()
 

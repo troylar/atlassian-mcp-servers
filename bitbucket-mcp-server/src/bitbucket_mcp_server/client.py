@@ -1,6 +1,8 @@
 """Bitbucket REST API client with dual auth support (PAT + Cloud)."""
 
 import base64
+import logging
+import time
 from typing import Any, Dict, List
 from urllib.parse import quote as url_quote
 
@@ -8,6 +10,8 @@ import httpx
 
 from bitbucket_mcp_server.config import AuthType, BitbucketConfig
 from bitbucket_mcp_server.validators import _safe_error_text, validate_url
+
+logger = logging.getLogger(__name__)
 
 
 class BitbucketClient:
@@ -69,8 +73,13 @@ class BitbucketClient:
             raise ValueError(f"Bitbucket API error ({status}): {_safe_error_text(response.text)}")
 
     def _request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
+        logger.debug("-> %s %s", method, url)
+        start = time.monotonic()
         with httpx.Client(timeout=self.timeout, verify=self.verify_ssl) as client:
-            return client.request(method, url, headers=self._get_headers(), **kwargs)
+            response = client.request(method, url, headers=self._get_headers(), **kwargs)
+            elapsed_ms = (time.monotonic() - start) * 1000
+            logger.debug("<- %s %s %s (%.0fms)", response.status_code, method, url, elapsed_ms)
+            return response
 
     def _dc_project_repo_url(self, project: str, repo: str) -> str:
         safe_project = url_quote(project, safe="")

@@ -1476,6 +1476,7 @@ class TestRequestMethod:
         client = ConfluenceClient(config)
 
         mock_response = MagicMock(spec=httpx.Response)
+        mock_response.status_code = 200
         mock_http_client = MagicMock()
         mock_http_client.__enter__ = MagicMock(return_value=mock_http_client)
         mock_http_client.__exit__ = MagicMock(return_value=False)

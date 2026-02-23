@@ -1,5 +1,6 @@
 """FastMCP 3 server entry point for Jira MCP Server."""
 
+import logging
 import sys
 from typing import Any, Dict, List
 
@@ -73,6 +74,8 @@ from jira_mcp_server.tools.workflow_tools import (
     jira_workflow_get_transitions,
     jira_workflow_transition,
 )
+
+logger = logging.getLogger(__name__)
 
 mcp = FastMCP("jira-mcp-server")
 
@@ -685,6 +688,13 @@ def main() -> None:
     try:
         global _client
         config = JiraConfig()  # type: ignore[call-arg]
+
+        logging.basicConfig(
+            level=getattr(logging, config.log_level),
+            format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+            stream=sys.stderr,
+        )
+
         client = JiraClient(config)
         _client = client
 
@@ -702,18 +712,16 @@ def main() -> None:
         from importlib.metadata import version as pkg_version
 
         _version = pkg_version("atlassian-jira-mcp")
-        print(f"Starting Jira MCP Server v{_version}...", file=sys.stderr)
-        print(f"Jira URL: {config.url}", file=sys.stderr)
-        print(f"Auth Type: {config.auth_type.value if config.auth_type else 'auto'}", file=sys.stderr)
-        print(f"Cache TTL: {config.cache_ttl}s", file=sys.stderr)
-        print(f"Timeout: {config.timeout}s", file=sys.stderr)
-        print(f"SSL Verification: {'Enabled' if config.verify_ssl else 'DISABLED'}", file=sys.stderr)
+        logger.info("Starting Jira MCP Server v%s...", _version)
+        logger.info("Jira URL: %s", config.url)
+        logger.info("Auth Type: %s", config.auth_type.value if config.auth_type else "auto")
+        logger.info("Cache TTL: %ss", config.cache_ttl)
+        logger.info("Timeout: %ss", config.timeout)
+        logger.info("SSL Verification: %s", "Enabled" if config.verify_ssl else "DISABLED")
         if not config.verify_ssl:
-            print(file=sys.stderr)
-            print("WARNING: SSL certificate verification is DISABLED!", file=sys.stderr)
-            print("This should only be used for testing with self-signed certificates.", file=sys.stderr)
-        print(file=sys.stderr)
-        print("Server ready! Use MCP client to interact with Jira.", file=sys.stderr)
+            logger.warning("SSL certificate verification is DISABLED!")
+            logger.warning("This should only be used for testing with self-signed certificates.")
+        logger.info("Server ready! Use MCP client to interact with Jira.")
 
         mcp.run()
 

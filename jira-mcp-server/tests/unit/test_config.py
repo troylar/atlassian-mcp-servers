@@ -180,3 +180,59 @@ class TestValidation:
         monkeypatch.delenv("JIRA_MCP_AUTH_TYPE", raising=False)
         with pytest.raises(ValidationError):
             JiraConfig()  # type: ignore[call-arg]
+
+
+class TestLogLevel:
+    def test_default_log_level(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("JIRA_MCP_URL", "https://jira.example.com")
+        monkeypatch.setenv("JIRA_MCP_TOKEN", "test-token")
+        monkeypatch.delenv("JIRA_MCP_EMAIL", raising=False)
+        monkeypatch.delenv("JIRA_MCP_AUTH_TYPE", raising=False)
+        monkeypatch.delenv("JIRA_MCP_LOG_LEVEL", raising=False)
+        config = JiraConfig()  # type: ignore[call-arg]
+        assert config.log_level == "WARNING"
+
+    def test_custom_log_level_debug(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("JIRA_MCP_URL", "https://jira.example.com")
+        monkeypatch.setenv("JIRA_MCP_TOKEN", "test-token")
+        monkeypatch.setenv("JIRA_MCP_LOG_LEVEL", "DEBUG")
+        monkeypatch.delenv("JIRA_MCP_EMAIL", raising=False)
+        monkeypatch.delenv("JIRA_MCP_AUTH_TYPE", raising=False)
+        config = JiraConfig()  # type: ignore[call-arg]
+        assert config.log_level == "DEBUG"
+
+    def test_custom_log_level_info(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("JIRA_MCP_URL", "https://jira.example.com")
+        monkeypatch.setenv("JIRA_MCP_TOKEN", "test-token")
+        monkeypatch.setenv("JIRA_MCP_LOG_LEVEL", "INFO")
+        monkeypatch.delenv("JIRA_MCP_EMAIL", raising=False)
+        monkeypatch.delenv("JIRA_MCP_AUTH_TYPE", raising=False)
+        config = JiraConfig()  # type: ignore[call-arg]
+        assert config.log_level == "INFO"
+
+    def test_custom_log_level_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("JIRA_MCP_URL", "https://jira.example.com")
+        monkeypatch.setenv("JIRA_MCP_TOKEN", "test-token")
+        monkeypatch.setenv("JIRA_MCP_LOG_LEVEL", "ERROR")
+        monkeypatch.delenv("JIRA_MCP_EMAIL", raising=False)
+        monkeypatch.delenv("JIRA_MCP_AUTH_TYPE", raising=False)
+        config = JiraConfig()  # type: ignore[call-arg]
+        assert config.log_level == "ERROR"
+
+    def test_case_insensitive(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("JIRA_MCP_URL", "https://jira.example.com")
+        monkeypatch.setenv("JIRA_MCP_TOKEN", "test-token")
+        monkeypatch.setenv("JIRA_MCP_LOG_LEVEL", "debug")
+        monkeypatch.delenv("JIRA_MCP_EMAIL", raising=False)
+        monkeypatch.delenv("JIRA_MCP_AUTH_TYPE", raising=False)
+        config = JiraConfig()  # type: ignore[call-arg]
+        assert config.log_level == "DEBUG"
+
+    def test_invalid_log_level_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("JIRA_MCP_URL", "https://jira.example.com")
+        monkeypatch.setenv("JIRA_MCP_TOKEN", "test-token")
+        monkeypatch.setenv("JIRA_MCP_LOG_LEVEL", "VERBOSE")
+        monkeypatch.delenv("JIRA_MCP_EMAIL", raising=False)
+        monkeypatch.delenv("JIRA_MCP_AUTH_TYPE", raising=False)
+        with pytest.raises(ValidationError, match="Invalid log_level"):
+            JiraConfig()  # type: ignore[call-arg]
