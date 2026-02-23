@@ -1128,6 +1128,37 @@ class TestListBlogs:
                 client.list_blogs("DEV")
 
 
+class TestListSpacePages:
+    def test_success(self) -> None:
+        config = _make_config(auth_type=AuthType.PAT)
+        client = ConfluenceClient(config)
+        pages_data = {"results": [{"id": "p1", "title": "Page One"}], "size": 1}
+        resp = _mock_response(200, pages_data)
+        with patch.object(client, "_request", return_value=resp) as mock_req:
+            result = client.list_space_pages("DEV", limit=10, start=5)
+        params = mock_req.call_args[1]["params"]
+        assert params["type"] == "page"
+        assert params["spaceKey"] == "DEV"
+        assert params["limit"] == 10
+        assert params["start"] == 5
+        assert result == pages_data
+
+    def test_timeout(self) -> None:
+        config = _make_config(auth_type=AuthType.PAT)
+        client = ConfluenceClient(config)
+        with patch.object(client, "_request", side_effect=httpx.TimeoutException("t")):
+            with pytest.raises(ValueError, match="Timeout listing pages in space DEV"):
+                client.list_space_pages("DEV")
+
+    def test_error(self) -> None:
+        config = _make_config(auth_type=AuthType.PAT)
+        client = ConfluenceClient(config)
+        resp = _mock_response(429)
+        with patch.object(client, "_request", return_value=resp):
+            with pytest.raises(ValueError, match="Rate limit exceeded"):
+                client.list_space_pages("DEV")
+
+
 class TestGetBlog:
     def test_delegates_to_get_page(self) -> None:
         config = _make_config(auth_type=AuthType.PAT)
