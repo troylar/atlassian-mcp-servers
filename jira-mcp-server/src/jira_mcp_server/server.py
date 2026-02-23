@@ -653,18 +653,18 @@ def main() -> None:
         from importlib.metadata import version as pkg_version
 
         _version = pkg_version("atlassian-jira-mcp")
-        print(f"Starting Jira MCP Server v{_version}...")
-        print(f"Jira URL: {config.url}")
-        print(f"Auth Type: {config.auth_type.value if config.auth_type else 'auto'}")
-        print(f"Cache TTL: {config.cache_ttl}s")
-        print(f"Timeout: {config.timeout}s")
-        print(f"SSL Verification: {'Enabled' if config.verify_ssl else 'DISABLED'}")
+        print(f"Starting Jira MCP Server v{_version}...", file=sys.stderr)
+        print(f"Jira URL: {config.url}", file=sys.stderr)
+        print(f"Auth Type: {config.auth_type.value if config.auth_type else 'auto'}", file=sys.stderr)
+        print(f"Cache TTL: {config.cache_ttl}s", file=sys.stderr)
+        print(f"Timeout: {config.timeout}s", file=sys.stderr)
+        print(f"SSL Verification: {'Enabled' if config.verify_ssl else 'DISABLED'}", file=sys.stderr)
         if not config.verify_ssl:
-            print()
-            print("WARNING: SSL certificate verification is DISABLED!")
-            print("This should only be used for testing with self-signed certificates.")
-        print()
-        print("Server ready! Use MCP client to interact with Jira.")
+            print(file=sys.stderr)
+            print("WARNING: SSL certificate verification is DISABLED!", file=sys.stderr)
+            print("This should only be used for testing with self-signed certificates.", file=sys.stderr)
+        print(file=sys.stderr)
+        print("Server ready! Use MCP client to interact with Jira.", file=sys.stderr)
 
         mcp.run()
 

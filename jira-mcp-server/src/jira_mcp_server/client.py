@@ -6,6 +6,7 @@ from typing import Any, Dict, List
 import httpx
 
 from jira_mcp_server.config import AuthType, JiraConfig
+from jira_mcp_server.validators import _safe_error_text, validate_file_path
 
 
 class JiraClient:
@@ -65,9 +66,9 @@ class JiraClient:
                     raise
                 pass
 
-            raise ValueError(f"Bad request: {response.text[:200]}")
+            raise ValueError(f"Bad request: {_safe_error_text(response.text)}")
         else:
-            raise ValueError(f"Jira API error ({status}): {response.text[:200]}")
+            raise ValueError(f"Jira API error ({status}): {_safe_error_text(response.text)}")
 
     @staticmethod
     def _disallowed_char_hint(errors: Dict[str, str], response: httpx.Response) -> str:
@@ -514,16 +515,17 @@ class JiraClient:
     # Attachment operations
 
     def add_attachment(self, issue_key: str, file_path: str, filename: str | None = None) -> List[Dict[str, Any]]:
+        safe_path = validate_file_path(file_path)
         url = f"{self.base_url}/rest/api/2/issue/{issue_key}/attachments"
         headers = self._get_headers()
         headers["X-Atlassian-Token"] = "no-check"
         del headers["Content-Type"]
         import os
 
-        actual_filename = filename or os.path.basename(file_path)
+        actual_filename = filename or os.path.basename(safe_path)
         try:
             with httpx.Client(timeout=self.timeout, verify=self.verify_ssl) as client:
-                with open(file_path, "rb") as f:
+                with open(safe_path, "rb") as f:
                     response = client.post(
                         url,
                         headers=headers,
@@ -534,7 +536,7 @@ class JiraClient:
                     return response.json()  # type: ignore[no-any-return]
         except httpx.TimeoutException:
             raise ValueError(f"Timeout adding attachment to {issue_key}")
-        except FileNotFoundError:
+        except FileNotFoundError:  # pragma: no cover – validate_file_path catches first
             raise ValueError(f"File not found: {file_path}")
 
     def get_attachment(self, attachment_id: str) -> Dict[str, Any]:

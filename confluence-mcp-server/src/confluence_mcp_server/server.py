@@ -598,13 +598,13 @@ def main() -> None:
         from importlib.metadata import version as pkg_version
 
         _version = pkg_version("atlassian-confluence-mcp")
-        print(f"Starting Confluence MCP Server v{_version}...")
-        print(f"Confluence URL: {config.url}")
-        print(f"Auth Type: {config.auth_type.value if config.auth_type else 'auto'}")
-        print(f"Timeout: {config.timeout}s")
-        print(f"SSL Verification: {'Enabled' if config.verify_ssl else 'DISABLED'}")
-        print()
-        print("Server ready! Use MCP client to interact with Confluence.")
+        print(f"Starting Confluence MCP Server v{_version}...", file=sys.stderr)
+        print(f"Confluence URL: {config.url}", file=sys.stderr)
+        print(f"Auth Type: {config.auth_type.value if config.auth_type else 'auto'}", file=sys.stderr)
+        print(f"Timeout: {config.timeout}s", file=sys.stderr)
+        print(f"SSL Verification: {'Enabled' if config.verify_ssl else 'DISABLED'}", file=sys.stderr)
+        print(file=sys.stderr)
+        print("Server ready! Use MCP client to interact with Confluence.", file=sys.stderr)
 
         mcp.run()
 
