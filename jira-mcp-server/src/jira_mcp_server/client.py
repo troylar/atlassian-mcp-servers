@@ -25,7 +25,7 @@ class JiraClient:
         self._token = config.token
         self._email = config.email
         self._username = config.username
-        self._password = config.password.get_secret_value() if config.password else None
+        self._password = config.password
         self._auth_type = config.auth_type or AuthType.PAT
         self.verify_ssl = config.verify_ssl
 
@@ -38,7 +38,8 @@ class JiraClient:
             credentials = base64.b64encode(f"{self._email}:{self._token}".encode()).decode()
             headers["Authorization"] = f"Basic {credentials}"
         elif self._auth_type == AuthType.BASIC:
-            credentials = base64.b64encode(f"{self._username}:{self._password}".encode()).decode()
+            password = self._password.get_secret_value() if self._password else ""
+            credentials = base64.b64encode(f"{self._username}:{password}".encode()).decode()
             headers["Authorization"] = f"Basic {credentials}"
         else:
             headers["Authorization"] = f"Bearer {self._token}"
