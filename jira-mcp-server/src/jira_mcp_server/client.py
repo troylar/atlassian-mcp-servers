@@ -1,4 +1,4 @@
-"""Jira REST API client with dual auth support (PAT + Cloud)."""
+"""Jira REST API client with multi-auth support (PAT + Cloud + Basic)."""
 
 import base64
 import logging
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class JiraClient:
     """HTTP client for Jira REST API v2.
 
-    Supports both Data Center (Bearer token) and Cloud (Basic auth) modes.
+    Supports Data Center (Bearer token), Cloud (Basic auth), and Basic (username/password) modes.
     """
 
     def __init__(self, config: JiraConfig):
@@ -24,6 +24,8 @@ class JiraClient:
         self.timeout = config.timeout
         self._token = config.token
         self._email = config.email
+        self._username = config.username
+        self._password = config.password
         self._auth_type = config.auth_type or AuthType.PAT
         self.verify_ssl = config.verify_ssl
 
@@ -35,6 +37,10 @@ class JiraClient:
         if self._auth_type == AuthType.CLOUD:
             credentials = base64.b64encode(f"{self._email}:{self._token}".encode()).decode()
             headers["Authorization"] = f"Basic {credentials}"
+        elif self._auth_type == AuthType.BASIC:
+            password = self._password.get_secret_value() if self._password else ""
+            credentials = base64.b64encode(f"{self._username}:{password}".encode()).decode()
+            headers["Authorization"] = f"Basic {credentials}"
         else:
             headers["Authorization"] = f"Bearer {self._token}"
         return headers
@@ -43,8 +49,14 @@ class JiraClient:
         status = response.status_code
 
         if status == 401:
+            if self._auth_type == AuthType.BASIC:
+                raise ValueError(
+                    "Authentication failed. Check your JIRA_MCP_USERNAME and JIRA_MCP_PASSWORD are correct."
+                )
             raise ValueError("Authentication failed. Check your JIRA_MCP_TOKEN is valid and hasn't expired.")
         elif status == 403:
+            if self._auth_type == AuthType.BASIC:
+                raise ValueError("Permission denied. Your username does not have access to this resource.")
             raise ValueError("Permission denied. Your token doesn't have access to this resource.")
         elif status == 404:
             raise ValueError(f"Resource not found. The requested {self._get_resource_type(response)} does not exist.")
@@ -114,9 +126,7 @@ class JiraClient:
         else:
             return "resource"
 
-    def _request(
-        self, method: str, url: str, **kwargs: Any
-    ) -> httpx.Response:
+    def _request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
         logger.debug("-> %s %s", method, url)
         start = time.monotonic()
         with httpx.Client(timeout=self.timeout, verify=self.verify_ssl) as client:
@@ -614,9 +624,7 @@ class JiraClient:
         if isinstance(size, str):
             size = int(size)
         if size > max_size:
-            raise ValueError(
-                f"Attachment {filename} is {size} bytes, exceeds {max_size} byte limit"
-            )
+            raise ValueError(f"Attachment {filename} is {size} bytes, exceeds {max_size} byte limit")
         headers = self._get_headers()
         headers.pop("Content-Type", None)
         logger.debug("-> GET %s (download)", content_url)
@@ -630,12 +638,13 @@ class JiraClient:
                     self._handle_error(response)
                 actual_size = len(response.content)
                 if actual_size > max_size:
-                    raise ValueError(
-                        f"Attachment {filename} is {actual_size} bytes, exceeds {max_size} byte limit"
-                    )
+                    raise ValueError(f"Attachment {filename} is {actual_size} bytes, exceeds {max_size} byte limit")
                 is_text = mime_type.startswith("text/") or mime_type in (
-                    "application/json", "application/xml", "application/javascript",
-                    "application/x-yaml", "application/yaml",
+                    "application/json",
+                    "application/xml",
+                    "application/javascript",
+                    "application/x-yaml",
+                    "application/yaml",
                 )
                 if is_text:
                     content = response.content.decode("utf-8", errors="replace")
