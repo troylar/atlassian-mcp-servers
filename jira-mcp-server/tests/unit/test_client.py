@@ -19,6 +19,13 @@ def _make_config(auth_type: AuthType = AuthType.PAT) -> JiraConfig:
             email="user@company.com",
             auth_type=AuthType.CLOUD,
         )
+    if auth_type == AuthType.BASIC:
+        return JiraConfig(
+            url="https://jira.example.com",
+            username="admin",
+            password="secret-pass",
+            auth_type=AuthType.BASIC,
+        )
     return JiraConfig(
         url="https://jira.example.com",
         token="test-pat-token",
@@ -50,6 +57,12 @@ class TestAuthHeaders:
         expected = base64.b64encode(b"user@company.com:api-token").decode()
         assert headers["Authorization"] == f"Basic {expected}"
 
+    def test_basic_auth_for_basic(self) -> None:
+        client = JiraClient(_make_config(AuthType.BASIC))
+        headers = client._get_headers()
+        expected = base64.b64encode(b"admin:secret-pass").decode()
+        assert headers["Authorization"] == f"Basic {expected}"
+
     def test_default_auth_type_pat_when_none(self) -> None:
         config = _make_config(AuthType.PAT)
         config._auth_type = None  # type: ignore[assignment]
@@ -57,6 +70,32 @@ class TestAuthHeaders:
         client._auth_type = AuthType.PAT
         headers = client._get_headers()
         assert "Bearer" in headers["Authorization"]
+
+
+class TestAuthErrorMessages:
+    def test_401_error_message_basic(self) -> None:
+        client = JiraClient(_make_config(AuthType.BASIC))
+        mock_resp = _mock_response(401)
+        with pytest.raises(ValueError, match="JIRA_MCP_USERNAME and JIRA_MCP_PASSWORD"):
+            client._handle_error(mock_resp)
+
+    def test_401_error_message_pat(self) -> None:
+        client = JiraClient(_make_config(AuthType.PAT))
+        mock_resp = _mock_response(401)
+        with pytest.raises(ValueError, match="JIRA_MCP_TOKEN"):
+            client._handle_error(mock_resp)
+
+    def test_403_error_message_basic(self) -> None:
+        client = JiraClient(_make_config(AuthType.BASIC))
+        mock_resp = _mock_response(403)
+        with pytest.raises(ValueError, match="Your username does not have access"):
+            client._handle_error(mock_resp)
+
+    def test_403_error_message_pat(self) -> None:
+        client = JiraClient(_make_config(AuthType.PAT))
+        mock_resp = _mock_response(403)
+        with pytest.raises(ValueError, match="Your token"):
+            client._handle_error(mock_resp)
 
 
 class TestHealthCheck:

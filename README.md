@@ -31,7 +31,7 @@ Requires Python 3.10+.
 
 ## Authentication
 
-All three servers support dual authentication modes, auto-detected from environment variables.
+All three servers support multiple authentication modes, auto-detected from environment variables.
 
 ### Atlassian Cloud
 
@@ -72,11 +72,22 @@ export BITBUCKET_MCP_URL=https://bitbucket.company.com
 export BITBUCKET_MCP_TOKEN=your-personal-access-token
 ```
 
+### Self-Hosted (Username + Password)
+
+The Jira server also supports traditional Basic authentication with username and password for older Server/Data Center instances:
+
+```bash
+export JIRA_MCP_URL=https://jira.company.com
+export JIRA_MCP_USERNAME=your-username
+export JIRA_MCP_PASSWORD=your-password
+```
+
 ### Auto-Detection
 
-- If `EMAIL` is set: Cloud mode (Basic auth)
-- If only `TOKEN` is set: Data Center mode (Bearer auth)
-- Set `AUTH_TYPE=cloud` or `AUTH_TYPE=pat` to override
+- If `EMAIL` is set: Cloud mode (Basic auth with email + API token)
+- If `USERNAME` + `PASSWORD` are set (Jira only): Basic mode (Basic auth with credentials)
+- If only `TOKEN` is set: Data Center mode (Bearer auth with PAT)
+- Set `AUTH_TYPE=cloud`, `AUTH_TYPE=pat`, or `AUTH_TYPE=basic` to override
 
 ## MCP Client Configuration
 

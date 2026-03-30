@@ -48,6 +48,111 @@ class TestAuthTypeAutoDetection:
         with pytest.raises(ValidationError, match="JIRA_MCP_EMAIL is required"):
             JiraConfig()  # type: ignore[call-arg]
 
+    def test_basic_auth_when_username_and_password_set(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("JIRA_MCP_URL", "https://jira.example.com")
+        monkeypatch.setenv("JIRA_MCP_USERNAME", "admin")
+        monkeypatch.setenv("JIRA_MCP_PASSWORD", "secret")
+        monkeypatch.delenv("JIRA_MCP_TOKEN", raising=False)
+        monkeypatch.delenv("JIRA_MCP_EMAIL", raising=False)
+        monkeypatch.delenv("JIRA_MCP_AUTH_TYPE", raising=False)
+        config = JiraConfig()  # type: ignore[call-arg]
+        assert config.auth_type == AuthType.BASIC
+        assert config.username == "admin"
+
+    def test_explicit_auth_type_override_basic(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("JIRA_MCP_URL", "https://jira.example.com")
+        monkeypatch.setenv("JIRA_MCP_USERNAME", "admin")
+        monkeypatch.setenv("JIRA_MCP_PASSWORD", "secret")
+        monkeypatch.setenv("JIRA_MCP_AUTH_TYPE", "basic")
+        monkeypatch.delenv("JIRA_MCP_TOKEN", raising=False)
+        monkeypatch.delenv("JIRA_MCP_EMAIL", raising=False)
+        config = JiraConfig()  # type: ignore[call-arg]
+        assert config.auth_type == AuthType.BASIC
+
+    def test_email_takes_precedence_over_username_in_auto_detect(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("JIRA_MCP_URL", "https://company.atlassian.net")
+        monkeypatch.setenv("JIRA_MCP_TOKEN", "api-token")
+        monkeypatch.setenv("JIRA_MCP_EMAIL", "user@company.com")
+        monkeypatch.setenv("JIRA_MCP_USERNAME", "admin")
+        monkeypatch.setenv("JIRA_MCP_PASSWORD", "secret")
+        monkeypatch.delenv("JIRA_MCP_AUTH_TYPE", raising=False)
+        config = JiraConfig()  # type: ignore[call-arg]
+        assert config.auth_type == AuthType.CLOUD
+
+    def test_explicit_basic_wins_over_email(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("JIRA_MCP_URL", "https://jira.example.com")
+        monkeypatch.setenv("JIRA_MCP_USERNAME", "admin")
+        monkeypatch.setenv("JIRA_MCP_PASSWORD", "secret")
+        monkeypatch.setenv("JIRA_MCP_EMAIL", "user@company.com")
+        monkeypatch.setenv("JIRA_MCP_AUTH_TYPE", "basic")
+        monkeypatch.delenv("JIRA_MCP_TOKEN", raising=False)
+        config = JiraConfig()  # type: ignore[call-arg]
+        assert config.auth_type == AuthType.BASIC
+
+
+class TestBasicAuthValidation:
+    def test_basic_auth_requires_username(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("JIRA_MCP_URL", "https://jira.example.com")
+        monkeypatch.setenv("JIRA_MCP_PASSWORD", "secret")
+        monkeypatch.setenv("JIRA_MCP_AUTH_TYPE", "basic")
+        monkeypatch.delenv("JIRA_MCP_USERNAME", raising=False)
+        monkeypatch.delenv("JIRA_MCP_TOKEN", raising=False)
+        monkeypatch.delenv("JIRA_MCP_EMAIL", raising=False)
+        with pytest.raises(ValidationError, match="JIRA_MCP_USERNAME is required"):
+            JiraConfig()  # type: ignore[call-arg]
+
+    def test_basic_auth_requires_password(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("JIRA_MCP_URL", "https://jira.example.com")
+        monkeypatch.setenv("JIRA_MCP_USERNAME", "admin")
+        monkeypatch.setenv("JIRA_MCP_AUTH_TYPE", "basic")
+        monkeypatch.delenv("JIRA_MCP_PASSWORD", raising=False)
+        monkeypatch.delenv("JIRA_MCP_TOKEN", raising=False)
+        monkeypatch.delenv("JIRA_MCP_EMAIL", raising=False)
+        with pytest.raises(ValidationError, match="JIRA_MCP_PASSWORD is required"):
+            JiraConfig()  # type: ignore[call-arg]
+
+    def test_basic_auth_no_token_required(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("JIRA_MCP_URL", "https://jira.example.com")
+        monkeypatch.setenv("JIRA_MCP_USERNAME", "admin")
+        monkeypatch.setenv("JIRA_MCP_PASSWORD", "secret")
+        monkeypatch.delenv("JIRA_MCP_TOKEN", raising=False)
+        monkeypatch.delenv("JIRA_MCP_EMAIL", raising=False)
+        monkeypatch.delenv("JIRA_MCP_AUTH_TYPE", raising=False)
+        config = JiraConfig()  # type: ignore[call-arg]
+        assert config.auth_type == AuthType.BASIC
+        assert config.token is None
+
+    def test_pat_requires_token(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("JIRA_MCP_URL", "https://jira.example.com")
+        monkeypatch.setenv("JIRA_MCP_AUTH_TYPE", "pat")
+        monkeypatch.delenv("JIRA_MCP_TOKEN", raising=False)
+        monkeypatch.delenv("JIRA_MCP_EMAIL", raising=False)
+        monkeypatch.delenv("JIRA_MCP_USERNAME", raising=False)
+        monkeypatch.delenv("JIRA_MCP_PASSWORD", raising=False)
+        with pytest.raises(ValidationError, match="JIRA_MCP_TOKEN is required for PAT"):
+            JiraConfig()  # type: ignore[call-arg]
+
+    def test_cloud_requires_token(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("JIRA_MCP_URL", "https://company.atlassian.net")
+        monkeypatch.setenv("JIRA_MCP_EMAIL", "user@company.com")
+        monkeypatch.setenv("JIRA_MCP_AUTH_TYPE", "cloud")
+        monkeypatch.delenv("JIRA_MCP_TOKEN", raising=False)
+        monkeypatch.delenv("JIRA_MCP_USERNAME", raising=False)
+        monkeypatch.delenv("JIRA_MCP_PASSWORD", raising=False)
+        with pytest.raises(ValidationError, match="JIRA_MCP_TOKEN is required for Cloud"):
+            JiraConfig()  # type: ignore[call-arg]
+
+    def test_password_not_in_repr(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("JIRA_MCP_URL", "https://jira.example.com")
+        monkeypatch.setenv("JIRA_MCP_USERNAME", "admin")
+        monkeypatch.setenv("JIRA_MCP_PASSWORD", "super-secret-password")
+        monkeypatch.delenv("JIRA_MCP_TOKEN", raising=False)
+        monkeypatch.delenv("JIRA_MCP_EMAIL", raising=False)
+        monkeypatch.delenv("JIRA_MCP_AUTH_TYPE", raising=False)
+        config = JiraConfig()  # type: ignore[call-arg]
+        assert "super-secret-password" not in repr(config)
+        assert "super-secret-password" not in str(config)
+
 
 class TestUrlHandling:
     def test_trailing_slash_removed(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -173,12 +278,14 @@ class TestValidation:
         with pytest.raises(ValidationError):
             JiraConfig()  # type: ignore[call-arg]
 
-    def test_missing_token_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_missing_token_raises_for_pat(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("JIRA_MCP_URL", "https://jira.example.com")
         monkeypatch.delenv("JIRA_MCP_TOKEN", raising=False)
         monkeypatch.delenv("JIRA_MCP_EMAIL", raising=False)
         monkeypatch.delenv("JIRA_MCP_AUTH_TYPE", raising=False)
-        with pytest.raises(ValidationError):
+        monkeypatch.delenv("JIRA_MCP_USERNAME", raising=False)
+        monkeypatch.delenv("JIRA_MCP_PASSWORD", raising=False)
+        with pytest.raises(ValidationError, match="JIRA_MCP_TOKEN is required for PAT"):
             JiraConfig()  # type: ignore[call-arg]
 
 

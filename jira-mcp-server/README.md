@@ -31,16 +31,26 @@ export JIRA_MCP_TOKEN=your-personal-access-token
 
 Generate a PAT in Jira under Profile > Personal Access Tokens.
 
+### Data Center / Server (Username + Password)
+
+```bash
+export JIRA_MCP_URL=https://jira.your-company.com
+export JIRA_MCP_USERNAME=your-username
+export JIRA_MCP_PASSWORD=your-password
+```
+
+For older Jira Server/Data Center instances that use traditional Basic authentication instead of PATs.
+
 ### Optional Variables
 
 | Variable | Default | Description |
 |---|---|---|
-| `JIRA_MCP_AUTH_TYPE` | auto | Force auth mode: `cloud` or `pat` |
+| `JIRA_MCP_AUTH_TYPE` | auto | Force auth mode: `cloud`, `pat`, or `basic` |
 | `JIRA_MCP_TIMEOUT` | `30` | HTTP request timeout in seconds |
 | `JIRA_MCP_VERIFY_SSL` | `true` | Verify SSL certificates |
 | `JIRA_MCP_CACHE_TTL` | `3600` | Field schema cache TTL in seconds |
 
-Auth type is auto-detected: if `JIRA_MCP_EMAIL` is set, Cloud (Basic auth) is used; otherwise PAT (Bearer auth) is used. Set `JIRA_MCP_AUTH_TYPE` explicitly to override.
+Auth type is auto-detected: if `JIRA_MCP_EMAIL` is set, Cloud mode is used; if `JIRA_MCP_USERNAME` and `JIRA_MCP_PASSWORD` are set, Basic mode is used; otherwise PAT mode is used. Set `JIRA_MCP_AUTH_TYPE` explicitly to override.
 
 ## MCP Client Configuration
 
@@ -62,7 +72,7 @@ Add to your `.mcp.json`:
 }
 ```
 
-For Data Center, omit `JIRA_MCP_EMAIL`.
+For Data Center with PAT, omit `JIRA_MCP_EMAIL`. For Data Center with username/password, use `JIRA_MCP_USERNAME` and `JIRA_MCP_PASSWORD` instead of `JIRA_MCP_TOKEN`.
 
 ## Tools
 
