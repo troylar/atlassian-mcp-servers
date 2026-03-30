@@ -54,9 +54,7 @@ class JiraConfig(BaseSettings):
         default=500, description="Max description chars in summary mode. 0=no limit", ge=0
     )
     default_limit: int = Field(default=25, description="Default pagination limit", gt=0)
-    summary_fields: Optional[str] = Field(
-        default=None, description="Comma-separated field override for summary mode"
-    )
+    summary_fields: Optional[str] = Field(default=None, description="Comma-separated field override for summary mode")
     include_links: bool = Field(default=False, description="Include self/web URLs in responses")
     log_level: str = Field(default="WARNING", description="Log level: DEBUG, INFO, WARNING, or ERROR")
 

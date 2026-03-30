@@ -55,9 +55,7 @@ class JiraClient:
             raise ValueError("Authentication failed. Check your JIRA_MCP_TOKEN is valid and hasn't expired.")
         elif status == 403:
             if self._auth_type == AuthType.BASIC:
-                raise ValueError(
-                    "Permission denied. Your username does not have access to this resource."
-                )
+                raise ValueError("Permission denied. Your username does not have access to this resource.")
             raise ValueError("Permission denied. Your token doesn't have access to this resource.")
         elif status == 404:
             raise ValueError(f"Resource not found. The requested {self._get_resource_type(response)} does not exist.")
@@ -127,9 +125,7 @@ class JiraClient:
         else:
             return "resource"
 
-    def _request(
-        self, method: str, url: str, **kwargs: Any
-    ) -> httpx.Response:
+    def _request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
         logger.debug("-> %s %s", method, url)
         start = time.monotonic()
         with httpx.Client(timeout=self.timeout, verify=self.verify_ssl) as client:
@@ -627,9 +623,7 @@ class JiraClient:
         if isinstance(size, str):
             size = int(size)
         if size > max_size:
-            raise ValueError(
-                f"Attachment {filename} is {size} bytes, exceeds {max_size} byte limit"
-            )
+            raise ValueError(f"Attachment {filename} is {size} bytes, exceeds {max_size} byte limit")
         headers = self._get_headers()
         headers.pop("Content-Type", None)
         logger.debug("-> GET %s (download)", content_url)
@@ -643,12 +637,13 @@ class JiraClient:
                     self._handle_error(response)
                 actual_size = len(response.content)
                 if actual_size > max_size:
-                    raise ValueError(
-                        f"Attachment {filename} is {actual_size} bytes, exceeds {max_size} byte limit"
-                    )
+                    raise ValueError(f"Attachment {filename} is {actual_size} bytes, exceeds {max_size} byte limit")
                 is_text = mime_type.startswith("text/") or mime_type in (
-                    "application/json", "application/xml", "application/javascript",
-                    "application/x-yaml", "application/yaml",
+                    "application/json",
+                    "application/xml",
+                    "application/javascript",
+                    "application/x-yaml",
+                    "application/yaml",
                 )
                 if is_text:
                     content = response.content.decode("utf-8", errors="replace")
